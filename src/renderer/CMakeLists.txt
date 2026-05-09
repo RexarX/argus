@@ -34,9 +34,17 @@ target_include_directories(argus_renderer
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
+argus_require_dependency(eigen)
+argus_require_dependency(argparse)
+argus_require_dependency(glaze)
+
 target_link_libraries(argus_renderer PRIVATE
     argus::core
     argus::common
+    argus::eigen::eigen
+    argus::argparse::argparse
+    argus::glaze::glaze
 )
 
 if(ARGUS_BUILD_RENDERER_WITH_ALGO)

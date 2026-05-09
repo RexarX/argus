@@ -5,9 +5,11 @@
 #include <algorithm>
 #include <array>
 #include <compare>
+#include <concepts>
 #include <cstddef>
 #include <format>
 #include <functional>
+#include <initializer_list>
 #include <istream>
 #include <iterator>
 #include <ostream>

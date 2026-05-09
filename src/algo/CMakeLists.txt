@@ -23,6 +23,7 @@ argus_target_set_platform(argus_algo)
 argus_target_set_output_dirs(argus_algo MODULE algo)
 argus_target_set_folder(argus_algo "argus/algo")
 
+include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
 argus_require_dependency(AdaptiveCpp)
 
 argus_target_add_pch(argus_algo ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
@@ -38,6 +39,11 @@ set_target_properties(argus_algo PROPERTIES
 )
 argus_target_enable_sanitizers(argus_algo)
 
+add_sycl_to_target(
+    TARGET argus_algo
+    SOURCES ${ARGUS_ALGO_ALL_FILES}
+)
+
 target_include_directories(argus_algo
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -46,14 +52,12 @@ target_include_directories(argus_algo
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-add_sycl_to_target(
-    TARGET argus_algo
-    SOURCES ${ARGUS_ALGO_SOURCES}
-)
+argus_require_dependency(eigen)
 
 target_link_libraries(argus_algo PUBLIC
     argus::core
     argus::common
+    argus::eigen::eigen
 )
 
 if(BUILD_TESTING)
@@ -77,14 +81,12 @@ if(ARGUS_ALGO_BUILD_CLI)
   argus_target_enable_lto(argus_algo_executable)
   argus_target_enable_sanitizers(argus_algo_executable)
 
-  target_include_directories(argus_algo_executable PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
   add_sycl_to_target(
       TARGET argus_algo_executable
       SOURCES ${ARGUS_ALGO_ALL_FILES} src/main.cpp
   )
 
   target_compile_options(argus_algo_executable PRIVATE -Wno-deprecated-declarations)
-
+  target_include_directories(argus_algo_executable PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   target_link_libraries(argus_algo_executable PRIVATE argus::algo)
 endif()

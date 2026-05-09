@@ -21,7 +21,7 @@ argus_dep_header(NAME "AdaptiveCpp")
 # Note: No CPM_* arguments are provided, as AdaptiveCpp requires a system install.
 argus_dep_begin(
     NAME AdaptiveCpp
-    VERSION ~25.10.0
+    VERSION ^25.10
     DEBIAN_NAMES adaptivecpp-dev
     RPM_NAMES adaptivecpp-devel
     PACMAN_NAMES adaptivecpp

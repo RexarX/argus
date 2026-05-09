@@ -1,6 +1,6 @@
-# argus
-
 <a name="readme-top"></a>
+
+# argus
 
 <!-- PROJECT SHIELDS -->
 
@@ -89,13 +89,14 @@ bindings (capi, python)
 
 | Dependency  | Required Version | Notes                        |
 | ----------- | ---------------- | ---------------------------- |
-| AdaptiveCpp | ~25.10.0         | SYCL implementation (system) |
+| AdaptiveCpp | ^25.10           | SYCL implementation (system) |
 | argparse    | ^3.0             | CLI argument parsing         |
-| assimp      | ^6.0.0           | 3D model loading             |
+| assimp      | ^6.0             | 3D model loading             |
 | Boost       | >= 1.85          | stacktrace, unordered, etc.  |
-| doctest     | ^2.0.0           | Testing framework            |
+| Eigen       | ^5.0             | Linear algebra               |
+| doctest     | ^2.0             | Testing framework            |
 | glaze       | ^7.0             | JSON serialization           |
-| pybind11    | ^3.0.0           | Python bindings              |
+| pybind11    | ^3.0             | Python bindings              |
 | spdlog      | ^1.12            | Logging library              |
 
 The project uses CPM (CMake Package Manager) to automatically download missing dependencies that are not found on the system. Dependencies marked as **system** (AdaptiveCpp) must be installed manually.
@@ -177,6 +178,8 @@ cmake --build build
 
 \* Defaults to `ON` when built as top-level project.
 
+[↑ Back to Top](#readme-top)
+
 <a name="installing-dependencies"></a>
 
 ## Installing Dependencies
@@ -198,7 +201,7 @@ sudo apt install cmake ninja-build ccache \
 ### Arch Linux
 
 ```bash
-sudo pacman -S cmake ninja ccache argparse assimp boost doctest glaze pybind11 spdlog
+sudo pacman -S cmake ninja ccache argparse assimp boost eigen doctest eigen glaze pybind11 spdlog
 
 # AdaptiveCpp using the AUR (paru, yay, pakku), or see dedicated section below to install from source
 paru -S adaptivecpp
@@ -211,7 +214,7 @@ paru -S adaptivecpp
 ```bash
 sudo dnf install cmake ninja-build ccache \
   argparse-devel assimp-devel boost-devel  \
-  doctest-devel pybind11-devel spdlog-devel
+  eigen3-devel doctest-devel pybind11-devel spdlog-devel
 
 # AdaptiveCpp (see dedicated section below to install from source)
 ```
@@ -221,7 +224,7 @@ sudo dnf install cmake ninja-build ccache \
 ### macOS (Homebrew)
 
 ```bash
-brew install cmake ninja ccache argparse assimp boost doctest glaze pybind11 spdlog
+brew install cmake ninja ccache argparse assimp boost eigen doctest glaze pybind11 spdlog
 
 # AdaptiveCpp from brew, or see dedicated section below to install from source
 brew install adaptivecpp

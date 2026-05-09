@@ -11,12 +11,10 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 _CPP_EXTENSIONS = {
-    ".c",
     ".cc",
     ".cpp",
     ".cxx",
     ".c++",
-    ".h",
     ".hh",
     ".hpp",
     ".hxx",
@@ -28,8 +26,6 @@ _CPP_EXTENSIONS = {
 
 _IGNORED_DIRS = {
     ".git",
-    ".gradle",
-    ".idea",
     ".vscode",
     ".vs",
     ".zed",
@@ -45,7 +41,6 @@ _IGNORED_DIRS = {
 DEFAULT_EXCLUDED_DIRS: tuple[str, ...] = (
     "build",
     "install",
-    "generated",
     ".cpm_cache",
 )
 

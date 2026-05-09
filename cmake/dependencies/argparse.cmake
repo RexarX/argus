@@ -20,7 +20,7 @@ argus_dep_header(NAME "argparse")
 argus_dep_begin(
     NAME argparse
     VERSION ^3.0
-    DEBIAN_NAMES argparse-dev
+    DEBIAN_NAMES libargparse-dev
     RPM_NAMES argparse-devel
     PACMAN_NAMES argparse
     BREW_NAMES argparse

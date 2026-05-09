@@ -19,7 +19,7 @@ argus_dep_header(NAME "readerwriterqueue")
 
 argus_dep_begin(
     NAME readerwriterqueue
-    VERSION ~1.0.0
+    VERSION ~1.0
     DEBIAN_NAMES readerwriterqueue-dev
     BREW_NAMES readerwriterqueue
     PKG_CONFIG_NAMES readerwriterqueue

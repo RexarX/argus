@@ -20,7 +20,7 @@ argus_dep_header(NAME "pybind11")
 # Use argus_module system for standard package finding
 argus_dep_begin(
     NAME pybind11
-    VERSION ^3.0.0
+    VERSION ^3.0
     DEBIAN_NAMES pybind11-dev
     RPM_NAMES pybind11-devel
     PACMAN_NAMES pybind11

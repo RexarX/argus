@@ -20,7 +20,7 @@ argus_dep_header(NAME "concurrentqueue")
 # Use argus_module system for standard package finding
 argus_dep_begin(
     NAME concurrentqueue
-    VERSION ~1.0.0
+    VERSION ~1.0
     DEBIAN_NAMES concurrentqueue-dev
     BREW_NAMES concurrentqueue
     PKG_CONFIG_NAMES concurrentqueue

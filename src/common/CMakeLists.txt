@@ -37,6 +37,7 @@ target_include_directories(argus_common
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
+argus_require_dependency(eigen)
 argus_require_dependency(argparse)
 argus_require_dependency(glaze)
 argus_require_dependency(assimp)
@@ -44,6 +45,7 @@ argus_require_dependency(assimp)
 target_link_libraries(argus_common
     PUBLIC
         argus::core
+        argus::eigen::eigen
     PRIVATE
         argus::argparse::argparse
         argus::glaze::glaze

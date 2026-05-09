@@ -20,7 +20,7 @@ argus_dep_header(NAME "doctest")
 # Use argus_module system for standard package finding
 argus_dep_begin(
     NAME doctest
-    VERSION ^2.0.0
+    VERSION ^2.0
     DEBIAN_NAMES doctest-dev
     RPM_NAMES doctest-devel
     PACMAN_NAMES doctest

@@ -20,7 +20,7 @@ argus_dep_header(NAME "assimp")
 # Use argus_module system for standard package finding
 argus_dep_begin(
     NAME assimp
-    VERSION ^6.0.0
+    VERSION ^6.0
     DEBIAN_NAMES libassimp-dev
     RPM_NAMES assimp-devel
     PACMAN_NAMES assimp
