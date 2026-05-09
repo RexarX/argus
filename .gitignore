@@ -23,7 +23,6 @@
 *.dll
 *.so.*
 
-
 # Fortran module files
 *.mod
 *.smod
@@ -39,31 +38,51 @@
 *.out
 *.app
 
-# Build directories
-build/
-Build/
-build-*/
-
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
-
 # Temporary files
 *.tmp
 *.log
 *.bak
 *.swp
 
-# vcpkg
-vcpkg_installed/
 
-# debug information files
+# Debug information files
 *.dwo
 
-# test output & cache
+# Build files
+out/
+build/
+bin/
+install/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
 Testing/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+CMakeSettings.json
+CMakeUserPresets.json
+
+# CPM
+.cpm_cache/
+
+# Python
+*.pyc
+__pycache__/
+
+# Logs
+logs/
+*.log
+
+# Editors
+*.sln
+*.vcxproj
+.vs/
+.vscode/
+.zed/
 .cache/
+.project
+.settings/
