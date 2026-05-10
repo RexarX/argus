@@ -334,7 +334,8 @@ inline void Logger::Log(const T& /*logger*/, Level level,
 
 template <LoggerTrait T, typename... Args>
   requires(sizeof...(Args) > 0)
-inline void Logger::Log(T logger, Level level, const std::source_location& loc,
+inline void Logger::Log(const T& logger, Level level,
+                        const std::source_location& loc,
                         std::format_string<Args...> fmt,
                         Args&&... args) noexcept {
   try {

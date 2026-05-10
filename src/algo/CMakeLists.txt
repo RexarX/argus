@@ -39,6 +39,16 @@ set_target_properties(argus_algo PROPERTIES
 )
 argus_target_enable_sanitizers(argus_algo)
 
+# SYCL device code cannot use host sanitizers - the device runtime lacks
+# the required sanitizer support libraries (ubsan, asan). Disable sanitizers
+# for SYCL-compiled translation units so that kernel bitcode is not
+# instrumented with unresolved sanitizer symbols.
+if(ARGUS_ENABLE_SANITIZERS)
+  target_compile_options(argus_algo PRIVATE
+      $<$<CONFIG:Debug>:SHELL:-fno-sanitize=all>
+  )
+endif()
+
 add_sycl_to_target(
     TARGET argus_algo
     SOURCES ${ARGUS_ALGO_ALL_FILES}
@@ -80,6 +90,12 @@ if(ARGUS_ALGO_BUILD_CLI)
   argus_target_set_optimization(argus_algo_executable)
   argus_target_enable_lto(argus_algo_executable)
   argus_target_enable_sanitizers(argus_algo_executable)
+
+  if(ARGUS_ENABLE_SANITIZERS)
+    target_compile_options(argus_algo_executable PRIVATE
+        $<$<CONFIG:Debug>:SHELL:-fno-sanitize=all>
+    )
+  endif()
 
   add_sycl_to_target(
       TARGET argus_algo_executable

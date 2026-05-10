@@ -34,7 +34,10 @@ using Timestamp = argus::container::StaticString<19>;  // YYYY-MM-DD_HH-MM-SS
 namespace {
 
 constexpr size_t kFormatBufferReserveSize = 256;
+
+#ifdef ARGUS_ENABLE_STACKTRACE
 constexpr size_t kDefaultStackTraceFrames = 10;
+#endif
 
 [[nodiscard]] auto GenerateTimestamp() noexcept
     -> std::expected<Timestamp, std::string_view> {

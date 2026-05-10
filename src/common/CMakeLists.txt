@@ -1,10 +1,28 @@
 set(MODULE_NAME "COMMON")
 
 set(ARGUS_COMMON_HEADERS
+    include/argus/common/scene.hpp
+
+    include/argus/common/config/argparse_policy.hpp
+    include/argus/common/config/argus.hpp
+    include/argus/common/config/config.hpp
+    include/argus/common/config/lidar.hpp
+    include/argus/common/config/mirror.hpp
+    include/argus/common/config/optimizer.hpp
+    include/argus/common/config/paths.hpp
+    include/argus/common/config/policy.hpp
+    include/argus/common/config/toml_policy.hpp
 )
 
 set(ARGUS_COMMON_SOURCES
-    src/library.cpp
+    src/config/argparse_policy.cpp
+    src/config/argus.cpp
+    src/config/config.cpp
+    src/config/lidar.cpp
+    src/config/mirror.cpp
+    src/config/optimizer.cpp
+    src/config/paths.cpp
+    src/config/toml_policy.cpp
 )
 
 set(ARGUS_COMMON_ALL_FILES
@@ -38,17 +56,17 @@ target_include_directories(argus_common
 
 include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
 argus_require_dependency(eigen)
-argus_require_dependency(argparse)
 argus_require_dependency(glaze)
+argus_require_dependency(argparse)
 argus_require_dependency(assimp)
 
 target_link_libraries(argus_common
     PUBLIC
         argus::core
         argus::eigen::eigen
+        argus::glaze::glaze
     PRIVATE
         argus::argparse::argparse
-        argus::glaze::glaze
         argus::assimp::assimp
 )
 

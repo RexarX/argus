@@ -35,7 +35,7 @@
 
 ## About The Project
 
-**argus** is a software tool that takes LiDAR parameters (viewing angle, range, scanning pattern) and target scene characteristics as input and outputs the optimal mirror position and tilt angle for maximum blind spot coverage.
+**argus** is a software tool that takes lidar parameters (viewing angle, range, scanning pattern) and target scene characteristics as input analyzes the scene for blind spots and outputs the optimal mirror position and tilt angle for maximum blind spot coverage.
 
 <a name="features"></a>
 
@@ -153,28 +153,28 @@ cmake --build build
 
 ## CMake Options
 
-| Option                                                  | Default | Description                              |
-| ------------------------------------------------------- | ------- | ---------------------------------------- |
-| `DEVELOPER_MODE`                                        | OFF     | Enable sanitizers and developer checks   |
-| `ARGUS_ENABLE_UNITY_BUILD`                              | OFF     | Enable Unity/Jumbo builds                |
-| `ARGUS_ENABLE_WARNINGS_AS_ERRORS`                       | ON\*    | Treat warnings as errors                 |
-| `ARGUS_DOWNLOAD_PACKAGES`                               | ON      | Download missing dependencies via CPM    |
-| `ARGUS_FORCE_DOWNLOAD_PACKAGES`                         | OFF     | Force CPM download even if system exists |
-| `ARGUS_CHECK_PACKAGE_VERSIONS`                          | ON      | Enforce dependency version requirements  |
-| `ARGUS_BUILD_TESTS`                                     | ON\*    | Build all test suites                    |
-| `ARGUS_BUILD_BENCHMARKS`                                | ON\*    | Build benchmarks                         |
-| `ARGUS_BUILD_ALGO`                                      | ON      | Build the algo module                    |
-| `ARGUS_ALGO_BUILD_CLI`                                  | ON\*    | Build the algo CLI                       |
-| `ARGUS_BUILD_BINDINGS`                                  | ON\*    | Build bindings (CAPI + Python)           |
-| `ARGUS_BUILD_BINDINGS_CAPI`                             | ON      | Build C API bindings                     |
-| `ARGUS_BUILD_BINDINGS_PYTHON`                           | ON      | Build Python bindings                    |
-| `ARGUS_BUILD_RENDERER`                                  | ON\*    | Build the renderer                       |
-| `ARGUS_BUILD_RENDERER_WITH_ALGO`                        | ON      | Link algo into renderer                  |
-| `ARGUS_{CORE,COMMON,ALGO,RENDERER}_ENABLE_SANITIZERS`   | OFF     | Enable sanitizers for debug builds       |
-| `ARGUS_{CORE,COMMON,ALGO,RENDERER}_SANITIZER_ADDRESS`   | OFF     | Enable AddressSanitizer                  |
-| `ARGUS_{CORE,COMMON,ALGO,RENDERER}_SANITIZER_UNDEFINED` | OFF     | Enable UndefinedBehaviorSanitizer        |
-| `ARGUS_{CORE,COMMON,ALGO,RENDERER}_SANITIZER_THREAD`    | OFF     | Enable ThreadSanitizer                   |
-| `ARGUS_{CORE,COMMON,ALGO,RENDERER}_SANITIZER_MEMORY`    | OFF     | Enable MemorySanitizer (Clang only)      |
+| Option                            | Default | Description                              |
+| --------------------------------- | ------- | ---------------------------------------- |
+| `DEVELOPER_MODE`                  | OFF     | Enable sanitizers and developer checks   |
+| `ARGUS_ENABLE_UNITY_BUILD`        | OFF     | Enable Unity/Jumbo builds                |
+| `ARGUS_ENABLE_WARNINGS_AS_ERRORS` | ON\*    | Treat warnings as errors                 |
+| `ARGUS_DOWNLOAD_PACKAGES`         | ON      | Download missing dependencies via CPM    |
+| `ARGUS_FORCE_DOWNLOAD_PACKAGES`   | OFF     | Force CPM download even if system exists |
+| `ARGUS_CHECK_PACKAGE_VERSIONS`    | ON      | Enforce dependency version requirements  |
+| `ARGUS_BUILD_TESTS`               | ON\*    | Build all test suites                    |
+| `ARGUS_BUILD_BENCHMARKS`          | ON\*    | Build benchmarks                         |
+| `ARGUS_BUILD_ALGO`                | ON      | Build the algo module                    |
+| `ARGUS_ALGO_BUILD_CLI`            | ON\*    | Build the algo CLI                       |
+| `ARGUS_BUILD_BINDINGS`            | ON\*    | Build bindings (CAPI + Python)           |
+| `ARGUS_BUILD_BINDINGS_CAPI`       | ON      | Build C API bindings                     |
+| `ARGUS_BUILD_BINDINGS_PYTHON`     | ON      | Build Python bindings                    |
+| `ARGUS_BUILD_RENDERER`            | ON\*    | Build the renderer                       |
+| `ARGUS_BUILD_RENDERER_WITH_ALGO`  | ON      | Link algo into renderer                  |
+| `ARGUS_ENABLE_SANITIZERS`         | OFF     | Enable sanitizers for debug builds       |
+| `ARGUS_SANITIZER_ADDRESS`         | OFF     | Enable AddressSanitizer                  |
+| `ARGUS_SANITIZER_UNDEFINED`       | OFF     | Enable UndefinedBehaviorSanitizer        |
+| `ARGUS_SANITIZER_THREAD`          | OFF     | Enable ThreadSanitizer                   |
+| `ARGUS_SANITIZER_MEMORY`          | OFF     | Enable MemorySanitizer (Clang only)      |
 
 \* Defaults to `ON` when built as top-level project.
 

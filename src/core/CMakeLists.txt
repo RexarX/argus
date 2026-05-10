@@ -10,6 +10,9 @@ set(ARGUS_CORE_HEADERS
 
     include/argus/container/static_string.hpp
 
+    include/argus/log/config.hpp
+    include/argus/log/logger.hpp
+
     include/argus/utils/filesystem.hpp
     include/argus/utils/hash.hpp
     include/argus/utils/macro.hpp
@@ -19,6 +22,8 @@ set(ARGUS_CORE_HEADERS
 set(ARGUS_CORE_SOURCES
     src/assert.cpp
     src/stacktrace.cpp
+
+    src/log/logger.cpp
 )
 
 set(ARGUS_CORE_ALL_FILES
@@ -110,6 +115,8 @@ elseif(APPLE)
 elseif(WIN32)
   target_compile_definitions(argus_core PRIVATE BOOST_STACKTRACE_USE_WINDBG)
 endif()
+
+target_compile_definitions(argus_core PRIVATE SPDLOG_HEADER_ONLY SPDLOG_USE_STD_FORMAT)
 
 argus_require_dependency(spdlog)
 target_link_libraries(argus_core PRIVATE argus::spdlog::spdlog_header_only)

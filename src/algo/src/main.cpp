@@ -10,6 +10,7 @@
 // than the buffer/accessor model to avoid the implicit synchronization overhead
 // that the latter introduces.
 
+#include <argus/common/config/argus.hpp>
 #include <argus/utils/macro.hpp>
 
 #include <sycl/sycl.hpp>
@@ -206,7 +207,9 @@ void PrintResult(std::string_view label, double pi_estimate, double elapsed_ms,
 
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
+  auto config = *argus::common::ArgusConfig::FromCmdArgs(argc, argv);
+
   std::println("╔══════════════════════════════════════════════════╗");
   std::println("║  argus / SYCL smoke-test: Monte Carlo π          ║");
   std::println("╚══════════════════════════════════════════════════╝\n");

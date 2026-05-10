@@ -48,13 +48,14 @@ struct Config {
   bool enable_console = true;  ///< Enable console output.
   bool enable_file = true;     ///< Enable file output.
   bool truncate_files = true;  ///< Enable truncation of existing log files.
-  bool async_logging = false;  ///< Enable async logging (better performance but
+  bool async_logging = true;   ///< Enable async logging (better performance but
                                ///< may lose last logs on crash).
 
   Level source_location_level =
       Level::kError;  ///< Minimum level to include source location.
   Level stack_trace_level =
       Level::kCritical;  ///< Minimum level to include stack trace.
+
   /**
    * @brief Creates default configuration.
    * @return Default `Config` instance
@@ -120,7 +121,9 @@ using LoggerTypeIndex = utils::TypeIndex;
 template <typename T>
 concept LoggerTrait = std::is_object_v<std::remove_cvref_t<T>> &&
                       std::is_empty_v<std::remove_cvref_t<T>> && requires {
-                        { T::kName } -> std::convertible_to<std::string_view>;
+                        {
+                          std::remove_cvref_t<T>::kName
+                        } -> std::convertible_to<std::string_view>;
                       };
 
 /**
@@ -141,7 +144,7 @@ concept LoggerTrait = std::is_object_v<std::remove_cvref_t<T>> &&
  */
 template <typename T>
 concept LoggerWithConfigTrait = LoggerTrait<T> && requires {
-  { T::kConfig } -> std::convertible_to<Config>;
+  { std::remove_cvref_t<T>::kConfig } -> std::convertible_to<Config>;
 };
 
 /**
@@ -163,7 +166,7 @@ concept LoggerWithConfigTrait = LoggerTrait<T> && requires {
 template <LoggerTrait T>
 [[nodiscard]] constexpr std::string_view LoggerNameOf(
     T /*logger*/ = {}) noexcept {
-  return T::kName;
+  return std::remove_cvref_t<T>::kName;
 }
 
 /**
@@ -187,7 +190,7 @@ template <LoggerTrait T>
 template <LoggerTrait T>
 [[nodiscard]] constexpr Config LoggerConfigOf(T /*logger*/ = {}) noexcept {
   if constexpr (LoggerWithConfigTrait<T>) {
-    return T::kConfig;
+    return std::remove_cvref_t<T>::kConfig;
   } else {
     return Config::Default();
   }
