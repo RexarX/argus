@@ -56,9 +56,6 @@ compile_commands.json
 *.bak
 *.swp
 
-# ImGui
-imgui.ini
-
 # debug information files
 *.dwo
 
@@ -66,3 +63,9 @@ imgui.ini
 Testing/
 .cache/
 .cpm_cache/
+
+# Clangd
+.clangd
+
+# ImGui
+imgui.ini
