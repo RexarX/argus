@@ -1,3 +1,5 @@
 CompileFlags:
   Add: /clang:-std=c++23
-  CompilationDatabase: build/windows-msvc-debug
+  CompilationDatabase: build/
+  # For nested build structure clangd will search subdirectories, consider manually adding needed dir (for example build/linux-gcc-debug)
+  # Alternatively, create a symlink: cd build && ln -s linux-gcc-debug/compile_commands.json
