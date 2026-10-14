@@ -314,8 +314,8 @@ Installed files: `argusConfig.cmake`, `argusConfigVersion.cmake`, `argusTargets.
 
 ## Documentation
 
-- [Embree](https://github.com/RenderKit/embree) -- CPU ray tracing used by the first backend
-- [Embree v4.4.1](https://github.com/RenderKit/embree/releases/tag/v4.4.1) -- binaries CMake downloads
+- [Embree](https://github.com/RenderKit/embree) - CPU ray tracing used by the first backend
+- [Embree v4.4.1](https://github.com/RenderKit/embree/releases/tag/v4.4.1) - binaries CMake downloads
 
 <a href="#readme-top">↑ Back to Top</a>
 
