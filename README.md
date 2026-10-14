@@ -52,18 +52,18 @@ LiDAR and mirror parameter optimization
 
 ### Key Features
 
-- **Embree on CPU** -- `ARGUS_ENABLE_EMBREE_BACKEND` fetches Embree 4.4.1 binaries at configure time
-- **C and Python bindings** -- C API plus pybind11 3.x modules
-- **Modular build** -- enable algorithm, simulation, gui and bindings independently
+- **Embree on CPU** - `ARGUS_ENABLE_EMBREE_BACKEND` fetches Embree 4.4.1 binaries at configure time
+- **C and Python bindings** - C API plus pybind11 3.x modules
+- **Modular build** - enable algorithm, simulation, gui and bindings independently
 - **Modern C++23**
-- **GUI** -- custom gui module for easy visualization of algorithm and simulation
+- **GUI** - custom gui module for easy visualization of algorithm and simulation
 
 ### Design Philosophy
 
-1. **Backends are CMake options** -- Embree is `ARGUS_ENABLE_EMBREE_BACKEND`, on by default
-2. **Fetch release binaries** -- Embree is downloaded while configuring, not compiled with the project
-3. **Fetch only what a build needs** -- Embree is downloaded when its option is on, and pybind11 only when Python bindings are enabled
-4. **One glue target** -- `argus::argus` carries the enabled C++ modules; C translation units see only the C headers
+1. **Backends are CMake options** - Embree is `ARGUS_ENABLE_EMBREE_BACKEND`, on by default
+2. **Fetch release binaries** - Embree is downloaded while configuring, not compiled with the project
+3. **Fetch only what a build needs** - Embree is downloaded when its option is on, and pybind11 only when Python bindings are enabled
+4. **One glue target** - `argus::argus` carries the enabled C++ modules; C translation units see only the C headers
 
 <a href="#readme-top">↑ Back to Top</a>
 
@@ -350,7 +350,7 @@ Distributed under the MIT License. See [LICENSE][license-url] for details.
 
 ## Contact
 
-**RexarX** -- who727cares@gmail.com
+**RexarX** - who727cares@gmail.com
 
 **Project:** [github.com/RexarX/argus](https://github.com/RexarX/argus)
 
