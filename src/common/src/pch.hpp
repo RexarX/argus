@@ -1,16 +1,12 @@
 #pragma once
 
-#include <concepts>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <fstream>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <type_traits>
+#include <memory_resource>
+#include <span>
+#include <vector>
 
-#include <argparse/argparse.hpp>
-#include <glaze/glaze.hpp>
-#include <glaze/toml.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <assimp/Importer.hpp>

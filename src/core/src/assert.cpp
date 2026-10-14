@@ -1,118 +1,76 @@
 #include <pch.hpp>
 
 #include <argus/assert.hpp>
-#include <argus/stacktrace.hpp>
 
-#include <cstdio>
-#include <cstdlib>
+#include <argus/log.hpp>
+#include <argus/utils/format.hpp>
+
+#include <atomic>
+#include <cstddef>
+#include <memory_resource>
 #include <source_location>
-#include <string>
 #include <string_view>
-
-#if defined(__cpp_lib_print) && (__cpp_lib_print >= 202302L)
-#include <print>
-#endif
-
-namespace {
-
-#ifdef ARGUS_ENABLE_STACKTRACE
-constexpr size_t kDefaultAssertionStacktraceFrames = 10;
-
-[[nodiscard]] argus::StacktraceConfig BuildAssertionStacktraceConfig(
-    const std::source_location& loc) noexcept {
-  auto config = argus::StacktraceConfig::FromSourceLocation(loc);
-  config.start_frame = 1;
-  config.max_frames = kDefaultAssertionStacktraceFrames;
-  config.stop_before = "__libc_start_main";
-  return config;
-}
-#endif
-
-}  // namespace
 
 namespace argus {
 
-namespace details {
+namespace {
 
-void PrintCurrentStackTrace(
-    [[maybe_unused]] const std::source_location& loc) noexcept {
-#ifdef ARGUS_ENABLE_STACKTRACE
-  const auto stacktrace =
-      Stacktrace::Capture(BuildAssertionStacktraceConfig(loc));
-  const std::string text = stacktrace.ToString();
+std::atomic<Assertion_Handler> g_custom_assertion_handler{nullptr};
 
-#if defined(__cpp_lib_print) && (__cpp_lib_print >= 202302L)
-  std::println(stderr, "\n{}", text);
-#else
-  std::fprintf(stderr, "\n%s\n", text.c_str());
-#endif
-#endif
+[[nodiscard]] constexpr std::string_view file_name(
+    std::string_view path) noexcept {
+    const size_t last_slash = path.find_last_of("/\\");
+    return (last_slash != std::string_view::npos) ? path.substr(last_slash + 1)
+                                                  : path;
 }
 
-}  // namespace details
-
-void AbortWithStacktrace(std::string_view message) noexcept {
-#if defined(__cpp_lib_print) && (__cpp_lib_print >= 202302L)
-  std::println(stderr, "\n=== FATAL ERROR ===");
-  std::println(stderr, "Message: {}", message);
-
-#ifdef ARGUS_ENABLE_STACKTRACE
-  const auto stacktrace = Stacktrace::Capture(
-      BuildAssertionStacktraceConfig(std::source_location::current()));
-  std::println(stderr, "\n{}", stacktrace.ToString());
-#else
-  std::println(
-      stderr,
-      "\nStack trace: <not available - build with ARGUS_ENABLE_STACKTRACE>");
-#endif
-
-  std::println(stderr, "===================\n");
-#else
-  std::fprintf(stderr, "\n=== FATAL ERROR ===\n");
-  std::fprintf(stderr, "Message: %.*s\n", static_cast<int>(message.size()),
-               message.data());
-
-#ifdef ARGUS_ENABLE_STACKTRACE
-  const auto stacktrace = Stacktrace::Capture(
-      BuildAssertionStacktraceConfig(std::source_location::current()));
-  const std::string text = stacktrace.ToString();
-  std::fprintf(stderr, "\n%s\n", text.c_str());
-#else
-  std::fprintf(
-      stderr,
-      "\nStack trace: <not available - build with ARGUS_ENABLE_STACKTRACE>\n");
-#endif
-
-  std::fprintf(stderr, "===================\n\n");
-#endif
-  std::fflush(stderr);
-
-  ARGUS_DEBUG_BREAK();
-  std::abort();
+void default_assertion_handler(std::string_view condition,
+                               std::string_view message,
+                               const std::source_location& loc) noexcept {
+    const std::pmr::string formatted =
+        format_assertion_message(condition, message, loc);
+    log::critical(std::string_view{formatted});
 }
 
-namespace details {
+}  // namespace
 
-#ifndef _MSC_VER
+std::pmr::string format_assertion_message(
+    std::string_view condition, std::string_view message,
+    const std::source_location& loc,
+    std::pmr::memory_resource* allocator) noexcept {
+    ARGUS_ASSERT(allocator != nullptr,
+                 "format_assertion_message needs an allocator");
+    std::pmr::string result{allocator};
+    result.reserve(256);
 
-#if defined(__GNUC__) || defined(__clang__)
-[[gnu::weak]]
-#endif
-bool HasLogPluginHandler() noexcept {
-  return false;
+    if (!message.empty()) {
+        utils::format_to(result, "Assertion failed: {} | {}", condition,
+                         message);
+    } else {
+        utils::format_to(result, "Assertion failed: {}", condition);
+    }
+
+    const std::string_view filename = file_name(loc.file_name());
+    utils::format_to(result, " [{}:{}]", filename, loc.line());
+    return result;
 }
 
-#if defined(__GNUC__) || defined(__clang__)
-[[gnu::weak]]
-#endif
-void LogPluginAssertionHandler(
-    [[maybe_unused]] std::string_view condition,
-    [[maybe_unused]] const std::source_location& loc,
-    [[maybe_unused]] std::string_view message) noexcept {
+void handle_assertion(std::string_view condition, std::string_view message,
+                      const std::source_location& loc) noexcept {
+    if (Assertion_Handler custom =
+            g_custom_assertion_handler.load(std::memory_order_relaxed)) {
+        custom(condition, message, loc);
+        return;
+    }
+    default_assertion_handler(condition, message, loc);
 }
 
-#endif
+void set_assertion_handler(Assertion_Handler handler) noexcept {
+    g_custom_assertion_handler.store(handler, std::memory_order_relaxed);
+}
 
-}  // namespace details
+Assertion_Handler get_assertion_handler() noexcept {
+    return g_custom_assertion_handler.load(std::memory_order_relaxed);
+}
 
 }  // namespace argus

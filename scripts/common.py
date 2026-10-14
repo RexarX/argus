@@ -1,316 +1,192 @@
 #!/usr/bin/env python3
-"""Common helpers for Argus CLI utility scripts."""
+"""
+Argus Dev Script Common Utilities
 
-from __future__ import annotations
+Shared helpers used by lint.py and format.py: colored console
+output, executable discovery, source-file scanning, and small argparse
+helpers for tools that shell out to external commands (clang-tidy,
+clang-format, ...).
+"""
 
-import os
-import shlex
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import List, Optional, Sequence
 
-_CPP_EXTENSIONS = {
-    ".cc",
-    ".cpp",
-    ".cxx",
-    ".c++",
-    ".hh",
-    ".hpp",
-    ".hxx",
-    ".h++",
-    ".ipp",
-    ".inl",
-    ".tpp",
-}
 
-_IGNORED_DIRS = {
-    ".git",
-    ".vscode",
-    ".vs",
-    ".zed",
-    ".cpm_cache",
-    "__pycache__",
-    "_deps",
-    "bin",
-    "build",
-    "out",
-}
+class Colors:
+    """ANSI color codes for terminal output"""
 
-# Directories excluded by default when no explicit --exclude flags are given.
-DEFAULT_EXCLUDED_DIRS: tuple[str, ...] = (
-    "build",
-    "install",
-    ".cpm_cache",
-)
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    NC = "\033[0m"  # No Color
 
+    @classmethod
+    def disable(cls):
+        """Disable colors (for terminals that don't support ANSI)"""
 
-class _AnsiColor:
-    RESET = "\033[0m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    RED = "\033[31m"
-    CYAN = "\033[36m"
+        cls.RED = ""
+        cls.GREEN = ""
+        cls.YELLOW = ""
+        cls.BLUE = ""
+        cls.NC = ""
 
 
-def _use_color() -> bool:
-    return sys.stdout.isatty() and os.getenv("NO_COLOR") is None
+def enable_windows_colors() -> None:
+    """Enable ANSI color support on Windows 10+, falling back to disabling
+    colors entirely if that isn't possible. Call this once at startup."""
 
-
-def _colorize(text: str, color: str) -> str:
-    if not _use_color():
-        return text
-    return f"{color}{text}{_AnsiColor.RESET}"
-
-
-def _log(level: str, message: str, color: str = "") -> None:
-    label = f"[{level}]"
-    if color:
-        label = _colorize(label, color)
-    print(f"{label} {message}")
-
-
-def info(message: str) -> None:
-    _log("INFO", message, _AnsiColor.CYAN)
-
-
-def success(message: str) -> None:
-    _log("OK", message, _AnsiColor.GREEN)
-
-
-def warn(message: str) -> None:
-    _log("WARN", message, _AnsiColor.YELLOW)
-
-
-def error(message: str) -> None:
-    _log("ERROR", message, _AnsiColor.RED)
-
-
-def find_upward_file(filename: str, start_dir: Path) -> Path | None:
-    current = start_dir.resolve()
-    for directory in [current, *current.parents]:
-        candidate = directory / filename
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def resolve_exclusions(
-    raw_excludes: Sequence[str] | None,
-    root_dir: Path,
-) -> list[Path]:
-    """Resolve *raw_excludes* to absolute paths.
-
-    When *raw_excludes* is ``None`` or empty the default exclusion list
-    (``DEFAULT_EXCLUDED_DIRS``) is used instead.  Each name in that list is
-    only added if a matching directory actually exists directly under
-    *root_dir*, so the defaults never produce spurious warnings.
-    """
-    if not raw_excludes:
-        defaults: list[Path] = []
-        for name in DEFAULT_EXCLUDED_DIRS:
-            candidate = (root_dir / name).resolve()
-            if candidate.exists():
-                defaults.append(candidate)
-        return defaults
-
-    resolved: list[Path] = []
-    for raw in raw_excludes:
-        path = Path(raw)
-        if not path.is_absolute():
-            path = (root_dir / path).resolve()
-        else:
-            path = path.resolve()
-        if not path.exists():
-            warn(f"Exclude path does not exist (ignored): {path}")
-            continue
-        resolved.append(path)
-    return resolved
-
-
-def validate_no_overlap(
-    explicit_files: Sequence[str],
-    exclusions: Sequence[Path],
-    root_dir: Path,
-) -> bool:
-    """Return *True* when there is no overlap between *explicit_files* and
-    *exclusions*.  Emits an error and returns *False* for every conflict found.
-    """
-    if not explicit_files or not exclusions:
-        return True
-
-    exclusion_set = set(exclusions)
-    ok = True
-    for raw in explicit_files:
-        path = Path(raw)
-        if not path.is_absolute():
-            path = (root_dir / path).resolve()
-        else:
-            path = path.resolve()
-
-        # Direct match.
-        if path in exclusion_set:
-            error(f"Path appears in both positional files and --exclude: {path}")
-            ok = False
-            continue
-
-        # The explicit path is a child of an excluded directory.
-        for excl in exclusion_set:
-            if is_relative_to(path, excl):
-                error(f"Path '{path}' is inside excluded directory '{excl}'")
-                ok = False
-                break
-
-    return ok
-
-
-def _is_excluded(path: Path, exclusions: Sequence[Path]) -> bool:
-    """Return *True* when *path* matches or lives inside an excluded path."""
-    for excl in exclusions:
-        if path == excl or is_relative_to(path, excl):
-            return True
-    return False
-
-
-def _is_cpp_file(path: Path) -> bool:
-    return path.suffix.lower() in _CPP_EXTENSIONS
-
-
-def _walk_cpp_files(
-    root_dir: Path,
-    exclusions: Sequence[Path] = (),
-) -> list[Path]:
-    files: list[Path] = []
-    for current, dir_names, file_names in os.walk(root_dir):
-        current_path = Path(current).resolve()
-
-        # Prune excluded directories before descending.
-        dir_names[:] = [
-            name
-            for name in dir_names
-            if name not in _IGNORED_DIRS
-            and not name.startswith(".")
-            and not _is_excluded(current_path / name, exclusions)
-        ]
-
-        for file_name in file_names:
-            candidate = (current_path / file_name).resolve()
-            if _is_cpp_file(candidate) and not _is_excluded(candidate, exclusions):
-                files.append(candidate)
-    files.sort()
-    return files
-
-
-def collect_cpp_files(
-    paths: Sequence[str],
-    root_dir: Path,
-    exclusions: Sequence[Path] = (),
-) -> list[Path]:
-    if not paths:
-        return _walk_cpp_files(root_dir, exclusions)
-
-    files: list[Path] = []
-    for raw_path in paths:
-        path = Path(raw_path)
-        if not path.is_absolute():
-            path = (root_dir / path).resolve()
-
-        if _is_excluded(path, exclusions):
-            warn(f"Skipping excluded path: {path}")
-            continue
-
-        if path.is_file():
-            if _is_cpp_file(path):
-                files.append(path)
-            else:
-                warn(f"Skipping non-C++ file: {path}")
-            continue
-
-        if path.is_dir():
-            files.extend(_walk_cpp_files(path, exclusions))
-            continue
-
-        warn(f"Skipping missing path: {path}")
-
-    deduplicated = sorted(set(files))
-    return deduplicated
-
-
-def discover_named_dirs(root_dir: Path, directory_name: str) -> list[Path]:
-    found: list[Path] = []
-    for current, dir_names, _ in os.walk(root_dir):
-        current_path = Path(current)
-        if current_path.name == directory_name:
-            found.append(current_path.resolve())
-            dir_names.clear()
-            continue
-
-        dir_names[:] = [
-            name
-            for name in dir_names
-            if name not in {".git", ".gradle", "__pycache__"}
-            and not name.startswith(".")
-        ]
-    found.sort()
-    return found
-
-
-def discover_compile_database_dirs(build_dirs: Sequence[Path]) -> list[Path]:
-    compile_db_dirs: set[Path] = set()
-    for build_dir in build_dirs:
-        direct_db = build_dir / "compile_commands.json"
-        if direct_db.is_file():
-            compile_db_dirs.add(build_dir.resolve())
-
-        for compile_db in build_dir.rglob("compile_commands.json"):
-            compile_db_dirs.add(compile_db.parent.resolve())
-
-    return sorted(compile_db_dirs)
-
-
-def split_chunks(items: Sequence[Path], chunk_size: int) -> Iterable[list[Path]]:
-    for index in range(0, len(items), chunk_size):
-        yield list(items[index : index + chunk_size])
-
-
-def quote_command(command: Sequence[str]) -> str:
-    return " ".join(shlex.quote(part) for part in command)
-
-
-def run_command(
-    command: Sequence[str],
-    *,
-    cwd: Path,
-    capture_output: bool = True,
-) -> subprocess.CompletedProcess[str]:
-    info(f"Running: {quote_command(command)}")
-    return subprocess.run(
-        list(command),
-        cwd=str(cwd),
-        text=True,
-        capture_output=capture_output,
-        check=False,
-    )
-
-
-def print_completed_output(result: subprocess.CompletedProcess[str]) -> None:
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-
-
-def is_relative_to(path: Path, base: Path) -> bool:
+    if sys.platform != "win32":
+        return
     try:
-        path.relative_to(base)
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    except Exception:
+        Colors.disable()
+
+
+def print_header(message: str) -> None:
+    """Print a colored, boxed header message"""
+
+    print(f"\n{Colors.GREEN}{'=' * 60}{Colors.NC}")
+    print(f"{Colors.GREEN}{message:^60}{Colors.NC}")
+    print(f"{Colors.GREEN}{'=' * 60}{Colors.NC}\n")
+
+
+def print_info(msg: str) -> None:
+    """Print info message in blue"""
+
+    print(f"{msg}{Colors.NC}")
+
+
+def print_success(msg: str) -> None:
+    """Print success message in green"""
+
+    print(f"{Colors.GREEN}{msg}{Colors.NC}")
+
+
+def print_warning(msg: str) -> None:
+    """Print warning message in yellow"""
+
+    print(f"{Colors.YELLOW}{msg}{Colors.NC}")
+
+
+def print_error(msg: str) -> None:
+    """Print error message in red"""
+
+    print(f"{Colors.RED}{msg}{Colors.NC}", file=sys.stderr)
+
+
+def find_executable(name: str) -> Optional[Path]:
+    """Find an executable in PATH, returning its Path or None."""
+
+    import shutil
+
+    result = shutil.which(name)
+    return Path(result) if result else None
+
+
+def check_tool_installed(name: str, version_flag: str = "--version") -> bool:
+    """Check whether a command-line tool is installed and runnable."""
+
+    try:
+        subprocess.run(
+            [name, version_flag],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         return True
-    except ValueError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 
-def infer_source_root_from_build_dir(compile_db_dir: Path) -> Path | None:
-    current = compile_db_dir.resolve()
-    for directory in [current, *current.parents]:
-        if directory.name == "build":
-            return directory.parent
-    return None
+def find_source_files(
+    source_dirs: Sequence[Path],
+    extensions: Sequence[str],
+    exclude_dirs: Sequence[Path],
+) -> List[Path]:
+    """Find all source files with the given extensions under source_dirs,
+    skipping anything inside exclude_dirs. Missing directories are skipped
+    with a warning rather than raising."""
+
+    source_files = []
+
+    for source_dir in source_dirs:
+        if not source_dir.exists():
+            print_warning(f"Directory does not exist: {source_dir}")
+            continue
+
+        print_info(f"Scanning directory: {source_dir}")
+
+        for ext in extensions:
+            for file_path in source_dir.rglob(f"*.{ext}"):
+                excluded = False
+                for exclude_dir in exclude_dirs:
+                    try:
+                        file_path.relative_to(exclude_dir)
+                        excluded = True
+                        break
+                    except ValueError:
+                        pass
+
+                if not excluded:
+                    source_files.append(file_path)
+
+    return sorted(source_files)
+
+
+def add_extra_args_argument(parser, tool_name: str) -> None:
+    """Add a repeatable --extra-arg option for passing raw arguments
+    straight through to an underlying tool (clang-tidy, clang-format, ...).
+
+    Usage: --extra-arg=-Wno-foo --extra-arg=-DSOME_DEFINE
+    """
+
+    parser.add_argument(
+        "--extra-arg",
+        dest="extra_args",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help=(
+            f"Additional argument to pass through to {tool_name}. "
+            "May be given multiple times."
+        ),
+    )
+
+
+def add_config_override_argument(parser, tool_name: str, config_filename: str) -> None:
+    """Add a --config option for overriding the config file a tool
+    would otherwise auto-discover (e.g. .clang-tidy, .clang-format)."""
+
+    parser.add_argument(
+        "--config",
+        dest="config_file",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help=f"Path to a {config_filename} file to use instead of the auto-discovered one",
+    )
+
+
+def resolve_config_file(
+    config_file: Optional[Path], project_root: Path
+) -> Optional[Path]:
+    """Resolve a user-supplied config path (relative to project_root if not
+    absolute) and verify it exists. Returns None if config_file is None."""
+
+    if config_file is None:
+        return None
+
+    path = config_file if config_file.is_absolute() else (project_root / config_file)
+    path = path.resolve()
+
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {path}")
+
+    return path

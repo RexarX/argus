@@ -1,108 +1,52 @@
-option(ARGUS_ALGO_BUILD_CLI "Build the argus algo CLI" ${PROJECT_IS_TOP_LEVEL})
-set(MODULE_NAME "ALGO")
-
 set(ARGUS_ALGO_HEADERS
+    include/argus/algo.hpp
+    include/argus/bound.hpp
+    include/argus/context.hpp
+    include/argus/coverage.hpp
+    include/argus/optimize.hpp
+    include/argus/target.hpp
+    include/argus/workspace.hpp
 )
 
 set(ARGUS_ALGO_SOURCES
-    src/library.cpp
+    src/coverage.cpp
+    src/optimize.cpp
+    src/pch.hpp
+    src/target.cpp
 )
 
-set(ARGUS_ALGO_ALL_FILES
-    ${ARGUS_ALGO_HEADERS}
-    ${ARGUS_ALGO_SOURCES}
-)
-
-add_library(argus_algo STATIC ${ARGUS_ALGO_ALL_FILES})
+add_library(argus_algo STATIC ${ARGUS_ALGO_HEADERS} ${ARGUS_ALGO_SOURCES})
 add_library(argus::algo ALIAS argus_algo)
 
-include(${PROJECT_SOURCE_DIR}/cmake/TargetUtils.cmake)
-
-argus_target_set_cxx_standard(argus_algo STANDARD 23)
-argus_target_set_platform(argus_algo)
-argus_target_set_output_dirs(argus_algo MODULE algo)
-argus_target_set_folder(argus_algo "argus/algo")
-
-include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
-argus_require_dependency(AdaptiveCpp)
-
-argus_target_add_pch(argus_algo ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
-argus_target_set_warnings(argus_algo)
-argus_target_set_optimization(argus_algo)
-# LTO disabled: AdaptiveCpp compiles SYCL code to LLVM IR bitcode, which is
-# incompatible with GNU archivers (gcc-ar). The syclcc-launcher handles
-# link-time optimization for executables.
-# argus_target_enable_lto(argus_algo)
 set_target_properties(argus_algo PROPERTIES
-    INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF
-    INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO OFF
+    OUTPUT_NAME argus_algo
+    EXPORT_NAME algo
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    POSITION_INDEPENDENT_CODE ON
 )
-argus_target_enable_sanitizers(argus_algo)
 
-# SYCL device code cannot use host sanitizers - the device runtime lacks
-# the required sanitizer support libraries (ubsan, asan). Disable sanitizers
-# for SYCL-compiled translation units so that kernel bitcode is not
-# instrumented with unresolved sanitizer symbols.
-if(ARGUS_ENABLE_SANITIZERS)
-  target_compile_options(argus_algo PRIVATE
-      $<$<CONFIG:Debug>:SHELL:-fno-sanitize=all>
-  )
-endif()
-
-add_sycl_to_target(
-    TARGET argus_algo
-    SOURCES ${ARGUS_ALGO_ALL_FILES}
-)
+argus_apply_conventions(argus_algo)
+argus_target_set_output_dirs(argus_algo)
+argus_target_set_folder(argus_algo "algo")
+argus_target_add_pch(argus_algo "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")
 
 target_include_directories(argus_algo
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-argus_require_dependency(eigen)
-
-target_link_libraries(argus_algo PUBLIC
-    argus::core
-    argus::common
-    argus::eigen::eigen
-)
-
-if(BUILD_TESTING)
-  add_subdirectory(tests)
+target_link_libraries(argus_algo PUBLIC argus::core)
+if(TARGET argus_sim)
+  target_link_libraries(argus_algo PUBLIC argus::sim)
 endif()
 
-if(ARGUS_ALGO_BUILD_CLI)
-  add_executable(argus_algo_executable
-      ${ARGUS_ALGO_ALL_FILES}
-      src/main.cpp
+if(ARGUS_ENABLE_INSTALL)
+  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+      FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h" PATTERN "*.inl"
   )
-
-  argus_target_set_cxx_standard(argus_algo_executable STANDARD 23)
-  argus_target_set_platform(argus_algo_executable)
-  argus_target_set_output_dirs(argus_algo_executable MODULE algo)
-  argus_target_set_folder(argus_algo_executable "argus/algo_executable")
-
-  argus_target_add_pch(argus_algo_executable ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
-  argus_target_set_warnings(argus_algo_executable)
-  argus_target_set_optimization(argus_algo_executable)
-  argus_target_enable_lto(argus_algo_executable)
-  argus_target_enable_sanitizers(argus_algo_executable)
-
-  if(ARGUS_ENABLE_SANITIZERS)
-    target_compile_options(argus_algo_executable PRIVATE
-        $<$<CONFIG:Debug>:SHELL:-fno-sanitize=all>
-    )
-  endif()
-
-  add_sycl_to_target(
-      TARGET argus_algo_executable
-      SOURCES ${ARGUS_ALGO_ALL_FILES} src/main.cpp
-  )
-
-  target_compile_options(argus_algo_executable PRIVATE -Wno-deprecated-declarations)
-  target_include_directories(argus_algo_executable PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-  target_link_libraries(argus_algo_executable PRIVATE argus::algo)
 endif()

@@ -1,0 +1,77 @@
+set(BUILD_TESTING OFF)
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_LEAVE_TEST_IN_ALL_TARGET OFF)
+set(EIGEN_BUILD_BLAS OFF)
+set(EIGEN_BUILD_LAPACK OFF)
+set(EIGEN_BUILD_BTL OFF)
+set(EIGEN_BUILD_SPBENCH OFF)
+set(EIGEN_BUILD_DOC OFF)
+set(EIGEN_BUILD_DEMOS OFF)
+set(EIGEN_BUILD_PKGCONFIG OFF)
+set(EIGEN_BUILD_CMAKE_PACKAGE OFF)
+
+set(CMAKE_SKIP_INSTALL_RULES TRUE)
+add_subdirectory(eigen SYSTEM)
+unset(CMAKE_SKIP_INSTALL_RULES)
+
+set_target_properties(eigen PROPERTIES FOLDER "third-party")
+argus_register_lib_target(eigen eigen)
+
+if(ARGUS_USE_MIMALLOC)
+  set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(MI_BUILD_OBJECT OFF CACHE BOOL "" FORCE)
+  set(MI_OVERRIDE OFF CACHE BOOL "" FORCE)
+  set(MI_BUILD_STATIC ON CACHE BOOL "" FORCE)
+
+  if(ARGUS_DEVELOPER_MODE OR
+     (NOT CMAKE_CONFIGURATION_TYPES AND
+      (CMAKE_BUILD_TYPE STREQUAL "Debug" OR
+       CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")))
+    set(MI_DEBUG "ON" CACHE STRING "" FORCE)
+  elseif(NOT CMAKE_CONFIGURATION_TYPES)
+    set(MI_DEBUG "OFF" CACHE STRING "" FORCE)
+  endif()
+
+  set(_argus_mi_asan OFF)
+  if(ARGUS_DEVELOPER_MODE AND ARGUS_ENABLE_SANITIZERS AND ARGUS_SANITIZER_ADDRESS
+     AND NOT ARGUS_COMPILER_IS_CLANG_CL)
+    set(_argus_mi_asan ON)
+  endif()
+  set(MI_TRACK_ASAN ${_argus_mi_asan} CACHE BOOL "" FORCE)
+
+  set(_argus_saved_required_flags "${CMAKE_REQUIRED_FLAGS}")
+  if(_argus_mi_asan)
+    if(MSVC)
+      string(APPEND CMAKE_REQUIRED_FLAGS " /fsanitize=address")
+    else()
+      string(APPEND CMAKE_REQUIRED_FLAGS " -fsanitize=address")
+    endif()
+  endif()
+
+  set(CMAKE_SKIP_INSTALL_RULES TRUE)
+  add_subdirectory(mimalloc SYSTEM)
+  unset(CMAKE_SKIP_INSTALL_RULES)
+  set(CMAKE_REQUIRED_FLAGS "${_argus_saved_required_flags}")
+
+  if(TARGET mimalloc-static)
+    set_target_properties(mimalloc-static PROPERTIES FOLDER "third-party")
+    if(MSVC AND _argus_mi_asan)
+      foreach(_prop COMPILE_OPTIONS LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
+        get_target_property(_vals mimalloc-static ${_prop})
+        if(_vals)
+          list(FILTER _vals EXCLUDE REGEX "^-fsanitize=address$")
+          set_property(TARGET mimalloc-static PROPERTY ${_prop} ${_vals})
+        endif()
+      endforeach()
+      target_compile_options(mimalloc-static PRIVATE
+          "$<$<CONFIG:Debug>:/fsanitize=address>"
+      )
+      get_target_property(_defs mimalloc-static COMPILE_DEFINITIONS)
+      if(NOT _defs MATCHES "MI_TRACK_ASAN")
+        target_compile_definitions(mimalloc-static PRIVATE MI_TRACK_ASAN=1)
+      endif()
+    endif()
+    argus_register_lib_target(mimalloc mimalloc-static)
+  endif()
+endif()

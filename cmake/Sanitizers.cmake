@@ -2,47 +2,39 @@
 # Sanitizer Configuration for Argus
 # ============================================================================
 #
-# This module provides support for various C++ sanitizers:
-# - AddressSanitizer (ASan): Detects memory errors (buffer overflows, use-after-free, etc.)
-# - UndefinedBehaviorSanitizer (UBSan): Detects undefined behavior
-# - ThreadSanitizer (TSan): Detects data races (mutually exclusive with ASan)
-# - MemorySanitizer (MSan): Detects uninitialized memory reads (Clang only, requires instrumented libc++)
+# Per-target sanitizer flags. Call argus_target_enable_sanitizers(<target>)
+# (or argus_apply_conventions) on every TU that participates in a Debug
+# sanitized link — including consumer game executables when embedding Argus
+# with ARGUS_DEVELOPER_MODE=ON.
 #
-# Usage:
-#   include(Sanitizers)
-#   argus_target_enable_sanitizers(my_target)
+# For third-party targets under Argus, use
+# argus_enable_sanitizers_in_binary_dir(<dir>) so MSVC ASan ABI stays consistent.
 #
-# Options:
-#   DEVELOPER_MODE                    - Expose sanitizer options and functionality (default: OFF)
-#   ARGUS_ENABLE_SANITIZERS           - Master switch for sanitizers (default: ON for Debug)
-#   ARGUS_SANITIZER_ADDRESS           - Enable AddressSanitizer (default: ON)
-#   ARGUS_SANITIZER_UNDEFINED         - Enable UndefinedBehaviorSanitizer (default: ON)
-#   ARGUS_SANITIZER_THREAD            - Enable ThreadSanitizer (default: OFF, mutually exclusive with ASan)
-#   ARGUS_SANITIZER_MEMORY            - Enable MemorySanitizer (default: OFF, Clang only)
-#
-# Notes:
-#   - ASan and TSan cannot be used together
-#   - MSan requires the entire program (including libc++) to be built with MSan
-#   - MSVC only supports ASan (/fsanitize=address)
-#   - Sanitizers are typically only enabled for Debug builds
+# Options (only when ARGUS_DEVELOPER_MODE=ON):
+#   ARGUS_ENABLE_SANITIZERS       - Master switch (default: ON)
+#   ARGUS_SANITIZER_ADDRESS       - ASan (default: ON)
+#   ARGUS_SANITIZER_UNDEFINED     - UBSan (default: ON; not on MSVC)
+#   ARGUS_SANITIZER_THREAD        - TSan (default: OFF; exclusive with ASan)
+#   ARGUS_SANITIZER_MEMORY        - MSan (default: OFF; Clang only)
 #
 # ============================================================================
 
 include_guard(GLOBAL)
 
-# Sanitizers are a developer-only feature.
-if(NOT DEVELOPER_MODE)
+if(NOT ARGUS_DEVELOPER_MODE)
   function(argus_target_enable_sanitizers TARGET)
   endfunction()
 
+  function(argus_enable_sanitizers_in_binary_dir DIR)
+  endfunction()
+
   function(argus_print_sanitizer_status)
-    message(STATUS "Sanitizers: DISABLED (DEVELOPER_MODE=OFF)")
+    message(STATUS "Sanitizers: DISABLED (ARGUS_DEVELOPER_MODE=OFF)")
   endfunction()
 
   return()
 endif()
 
-# Detect compiler capabilities
 set(ARGUS_COMPILER_IS_GNU OFF)
 set(ARGUS_COMPILER_IS_CLANG OFF)
 set(ARGUS_COMPILER_IS_MSVC OFF)
@@ -60,24 +52,12 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   set(ARGUS_COMPILER_IS_MSVC ON)
 endif()
 
-# ============================================================================
-# Sanitizer Options
-# ============================================================================
-
-# Master switch - enabled by default for Debug builds
 option(ARGUS_ENABLE_SANITIZERS "Enable sanitizers for Debug builds" ON)
-
-# Individual sanitizer options
 option(ARGUS_SANITIZER_ADDRESS "Enable AddressSanitizer" ON)
 option(ARGUS_SANITIZER_UNDEFINED "Enable UndefinedBehaviorSanitizer" ON)
 option(ARGUS_SANITIZER_THREAD "Enable ThreadSanitizer (mutually exclusive with ASan)" OFF)
 option(ARGUS_SANITIZER_MEMORY "Enable MemorySanitizer (Clang only, requires instrumented libc++)" OFF)
 
-# ============================================================================
-# Validation
-# ============================================================================
-
-# Check for mutually exclusive sanitizers
 if(ARGUS_SANITIZER_ADDRESS AND ARGUS_SANITIZER_THREAD)
   message(WARNING "AddressSanitizer and ThreadSanitizer cannot be used together. Disabling ThreadSanitizer.")
   set(ARGUS_SANITIZER_THREAD OFF CACHE BOOL "Enable ThreadSanitizer" FORCE)
@@ -93,13 +73,11 @@ if(ARGUS_SANITIZER_THREAD AND ARGUS_SANITIZER_MEMORY)
   set(ARGUS_SANITIZER_MEMORY OFF CACHE BOOL "Enable MemorySanitizer" FORCE)
 endif()
 
-# MSan is only available on Clang
 if(ARGUS_SANITIZER_MEMORY AND NOT ARGUS_COMPILER_IS_CLANG)
   message(WARNING "MemorySanitizer is only available with Clang. Disabling MemorySanitizer.")
   set(ARGUS_SANITIZER_MEMORY OFF CACHE BOOL "Enable MemorySanitizer" FORCE)
 endif()
 
-# MSVC only supports ASan
 if(ARGUS_COMPILER_IS_MSVC OR ARGUS_COMPILER_IS_CLANG_CL)
   if(ARGUS_SANITIZER_UNDEFINED)
     message(STATUS "UndefinedBehaviorSanitizer is not supported on MSVC. Disabling.")
@@ -115,30 +93,30 @@ if(ARGUS_COMPILER_IS_MSVC OR ARGUS_COMPILER_IS_CLANG_CL)
   endif()
 endif()
 
-# ============================================================================
-# Internal Helper Functions
-# ============================================================================
+# LLVM's clang-cl ASan rejects /MDd (debug CRT). Mixing instrumented and
+# uninstrumented TUs then trips MSVC STL annotate_string /failifmismatch.
+if(ARGUS_COMPILER_IS_CLANG_CL AND ARGUS_SANITIZER_ADDRESS)
+  message(STATUS "AddressSanitizer is not supported with clang-cl debug CRT (/MDd). Disabling.")
+  set(ARGUS_SANITIZER_ADDRESS OFF CACHE BOOL "Enable AddressSanitizer" FORCE)
+endif()
 
-# Build the sanitizer flags string for GCC/Clang
 function(_argus_get_sanitizer_flags OUT_COMPILE_FLAGS OUT_LINK_FLAGS)
   set(_compile_flags "")
   set(_link_flags "")
 
-  if(ARGUS_COMPILER_IS_GNU OR ARGUS_COMPILER_IS_CLANG)
+  if(ARGUS_COMPILER_IS_MSVC AND ARGUS_SANITIZER_ADDRESS)
+    set(_compile_flags "/fsanitize=address")
+  elseif(ARGUS_COMPILER_IS_GNU OR ARGUS_COMPILER_IS_CLANG)
     set(_sanitizers "")
-
     if(ARGUS_SANITIZER_ADDRESS)
       list(APPEND _sanitizers "address")
     endif()
-
     if(ARGUS_SANITIZER_UNDEFINED)
       list(APPEND _sanitizers "undefined")
     endif()
-
     if(ARGUS_SANITIZER_THREAD)
       list(APPEND _sanitizers "thread")
     endif()
-
     if(ARGUS_SANITIZER_MEMORY)
       list(APPEND _sanitizers "memory")
     endif()
@@ -147,14 +125,10 @@ function(_argus_get_sanitizer_flags OUT_COMPILE_FLAGS OUT_LINK_FLAGS)
       list(JOIN _sanitizers "," _sanitizer_list)
       set(_compile_flags "-fsanitize=${_sanitizer_list} -fno-omit-frame-pointer -fno-optimize-sibling-calls")
       set(_link_flags "-fsanitize=${_sanitizer_list}")
-
-      # Add extra flags for better error reporting
       if(ARGUS_SANITIZER_ADDRESS)
         string(APPEND _compile_flags " -fsanitize-address-use-after-scope")
       endif()
-
       if(ARGUS_SANITIZER_UNDEFINED)
-        # Print stack trace on UBSan error
         string(APPEND _compile_flags " -fno-sanitize-recover=undefined")
       endif()
     endif()
@@ -164,70 +138,105 @@ function(_argus_get_sanitizer_flags OUT_COMPILE_FLAGS OUT_LINK_FLAGS)
   set(${OUT_LINK_FLAGS} "${_link_flags}" PARENT_SCOPE)
 endfunction()
 
-# Build the sanitizer flags for MSVC
-function(_argus_get_msvc_sanitizer_flags OUT_COMPILE_FLAGS OUT_LINK_FLAGS)
-  set(_compile_flags "")
-  set(_link_flags "")
-
-  if(ARGUS_COMPILER_IS_MSVC OR ARGUS_COMPILER_IS_CLANG_CL)
-    if(ARGUS_SANITIZER_ADDRESS)
-      set(_compile_flags "/fsanitize=address")
-      # MSVC ASan doesn't require special linker flags
-    endif()
+# Top-level builds: directory-scope under Helios so CPM/third-party share MSVC
+# ASan ABI. Does not affect parent project targets when Argus is embedded
+# (ARGUS_MANAGE_TOOLCHAIN defaults OFF when not top-level).
+if(ARGUS_MANAGE_TOOLCHAIN AND ARGUS_ENABLE_SANITIZERS)
+  _argus_get_sanitizer_flags(_argus_dir_sanitizer_compile _argus_dir_sanitizer_link)
+  if(_argus_dir_sanitizer_compile)
+    separate_arguments(_argus_dir_sanitizer_compile_list
+        UNIX_COMMAND "${_argus_dir_sanitizer_compile}")
+    foreach(_flag IN LISTS _argus_dir_sanitizer_compile_list)
+      add_compile_options("$<$<CONFIG:Debug>:${_flag}>")
+    endforeach()
   endif()
+  if(_argus_dir_sanitizer_link)
+    add_link_options("$<$<CONFIG:Debug>:SHELL:${_argus_dir_sanitizer_link}>")
+  endif()
+endif()
 
-  set(${OUT_COMPILE_FLAGS} "${_compile_flags}" PARENT_SCOPE)
-  set(${OUT_LINK_FLAGS} "${_link_flags}" PARENT_SCOPE)
-endfunction()
+#[[
+    argus_target_enable_sanitizers(<target>)
 
-# ============================================================================
-# Public API
-# ============================================================================
-
-# Enable sanitizers for a specific target
-# Usage: argus_target_enable_sanitizers(my_target)
+    Applies sanitizer compile/link options for Debug configs to a target.
+    No-op when ARGUS_MANAGE_TOOLCHAIN already applied directory-scope flags
+    (top-level Argus builds), except consumers outside the Argus tree still
+    need this when embedding with developer mode.
+]]
 function(argus_target_enable_sanitizers TARGET)
   if(NOT ARGUS_ENABLE_SANITIZERS)
     return()
   endif()
-
-  # Only apply sanitizers for Debug builds
-  set(_is_debug "$<CONFIG:Debug>")
-
-  if(ARGUS_COMPILER_IS_MSVC OR ARGUS_COMPILER_IS_CLANG_CL)
-    _argus_get_msvc_sanitizer_flags(_compile_flags _link_flags)
-
-    if(_compile_flags)
-      target_compile_options(${TARGET} PRIVATE
-            $<${_is_debug}:${_compile_flags}>
-        )
-    endif()
-
-    if(_link_flags)
-      target_link_options(${TARGET} PRIVATE
-            $<${_is_debug}:${_link_flags}>
-        )
-    endif()
-  else()
-    _argus_get_sanitizer_flags(_compile_flags _link_flags)
-
-    if(_compile_flags)
-      separate_arguments(_compile_flags_list UNIX_COMMAND "${_compile_flags}")
-      target_compile_options(${TARGET} PRIVATE
-            $<${_is_debug}:${_compile_flags_list}>
-        )
-    endif()
-
-    if(_link_flags)
-      separate_arguments(_link_flags_list UNIX_COMMAND "${_link_flags}")
-      target_link_options(${TARGET} PRIVATE
-            $<${_is_debug}:${_link_flags_list}>
-        )
-    endif()
+  if(NOT TARGET ${TARGET})
+    return()
   endif()
+
+  get_target_property(_imported ${TARGET} IMPORTED)
+  if(_imported)
+    return()
+  endif()
+
+  get_target_property(_type ${TARGET} TYPE)
+  if(_type STREQUAL "INTERFACE_LIBRARY" OR _type STREQUAL "UTILITY")
+    return()
+  endif()
+
+  get_target_property(_already ${TARGET} ARGUS_SANITIZERS_APPLIED)
+  if(_already)
+    return()
+  endif()
+
+  # Directory-scope already covers targets created under the Argus tree when
+  # managing the toolchain. Still apply per-target for consumers that call
+  # argus_apply_conventions from outside Argus (embedding).
+  if(ARGUS_MANAGE_TOOLCHAIN)
+    # Mark applied so we do not double-attach; flags come from add_*_options.
+    set_target_properties(${TARGET} PROPERTIES ARGUS_SANITIZERS_APPLIED TRUE)
+    return()
+  endif()
+
+  _argus_get_sanitizer_flags(_compile_flags _link_flags)
+
+  if(_compile_flags)
+    separate_arguments(_compile_flags_list UNIX_COMMAND "${_compile_flags}")
+    foreach(_flag IN LISTS _compile_flags_list)
+      target_compile_options(${TARGET} PRIVATE "$<$<CONFIG:Debug>:${_flag}>")
+    endforeach()
+  endif()
+
+  if(_link_flags)
+    target_link_options(${TARGET} PRIVATE "$<$<CONFIG:Debug>:SHELL:${_link_flags}>")
+  endif()
+
+  set_target_properties(${TARGET} PROPERTIES ARGUS_SANITIZERS_APPLIED TRUE)
 endfunction()
 
-# Print sanitizer configuration status
+#[[
+    argus_enable_sanitizers_in_binary_dir(<dir>)
+
+    Enables sanitizers on all non-imported targets registered in a CMake binary
+    directory. Used for CPM-fetched dependencies that must share MSVC ASan ABI.
+]]
+function(argus_enable_sanitizers_in_binary_dir DIR)
+  if(NOT ARGUS_ENABLE_SANITIZERS)
+    return()
+  endif()
+  if(NOT IS_DIRECTORY "${DIR}")
+    return()
+  endif()
+
+  get_directory_property(_targets DIRECTORY "${DIR}" BUILDSYSTEM_TARGETS)
+  if(NOT _targets)
+    return()
+  endif()
+
+  foreach(_target IN LISTS _targets)
+    if(TARGET ${_target})
+      argus_target_enable_sanitizers(${_target})
+    endif()
+  endforeach()
+endfunction()
+
 function(argus_print_sanitizer_status)
   if(NOT ARGUS_ENABLE_SANITIZERS)
     message(STATUS "Sanitizers: DISABLED")
@@ -242,6 +251,8 @@ function(argus_print_sanitizer_status)
     message(STATUS "  Compiler: MSVC/clang-cl (limited sanitizer support)")
     if(ARGUS_SANITIZER_ADDRESS)
       message(STATUS "  ✓ AddressSanitizer")
+    elseif(ARGUS_COMPILER_IS_CLANG_CL)
+      message(STATUS "  (no sanitizers: clang-cl ASan is incompatible with /MDd)")
     endif()
   else()
     message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")

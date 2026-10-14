@@ -1,14 +1,14 @@
 BasedOnStyle: Google
 ColumnLimit: 80
 
-IndentWidth: 2
-TabWidth: 2
+IndentWidth: 4
+TabWidth: 4
 UseTab: Never
 IndentAccessModifiers: false
-AccessModifierOffset: -2
+AccessModifierOffset: -4
 
 AllowShortFunctionsOnASingleLine: Inline
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: false
 
 DerivePointerAlignment: false

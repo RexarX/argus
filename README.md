@@ -1,334 +1,360 @@
-<a name="readme-top"></a>
-
-# argus
+<a id="readme-top"></a>
 
 <!-- PROJECT SHIELDS -->
 
 [![C++23][cpp-shield]][cpp-url]
 [![MIT License][license-shield]][license-url]
 
+<!-- PROJECT LOGO -->
+
+<br />
+
+<div align="center">
+
+# argus
+
+LiDAR and mirror parameter optimization
+
+<b><a href="#getting-started">Get Started »</a></b> · <a href="#key-features">Features</a> · <a href="#modules">Modules</a> · <a href="#building">Build</a> · <a href="#using-as-a-dependency">Third-Party</a> · <a href="#documentation">Docs</a>
+
+</div>
+
+---
+
 ## Table of Contents
 
-- [About The Project](#about-the-project)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Dependencies](#dependencies)
-- [Building](#building)
-    - [Quick Start](#quick-start)
-    - [Available Presets](#available-presets)
-    - [Manual configure](#manual-configure)
-- [CMake Options](#cmake-options)
-- [Installing Dependencies](#installing-dependencies)
-    - [Ubuntu / Debian](#ubuntu-debian)
-    - [Arch Linux](#arch-linux)
-    - [Fedora / RHEL](#fedora-rhel)
-    - [macOS (Homebrew)](#macos-homebrew)
-    - [AdaptiveCpp](#adaptivecpp)
-    - [Windows](#windows)
-- [Makefile](#makefile)
-- [Testing](#testing)
-- [Contact](#contact)
-- [License](#license)
+- <a href="#about-the-project">About The Project</a>
+  - <a href="#key-features">Key Features</a>
+  - <a href="#design-philosophy">Design Philosophy</a>
+- <a href="#modules">Modules</a>
+- <a href="#getting-started">Getting Started</a>
+  - <a href="#requirements">Requirements</a>
+  - <a href="#installing-dependencies">Installing Dependencies</a>
+  - <a href="#building">Building</a>
+  - <a href="#run-the-example">Run the Example</a>
+- <a href="#using-as-a-dependency">Using as a Dependency</a>
+  - <a href="#method-1-add_subdirectory">add_subdirectory</a>
+  - <a href="#method-2-fetchcontent">FetchContent</a>
+  - <a href="#method-3-cpm">CPM</a>
+  - <a href="#method-4-installed-package-find_package">Installed Package (find_package)</a>
+- <a href="#documentation">Documentation</a>
+- <a href="#development">Development</a>
+- <a href="#license">License</a>
+- <a href="#contact">Contact</a>
 
-<a name="about-the-project"></a>
+---
 
 ## About The Project
 
-**argus** is a software tool that takes lidar parameters (viewing angle, range, scanning pattern) and target scene characteristics as input analyzes the scene for blind spots and outputs the optimal mirror position and tilt angle for maximum blind spot coverage.
+**argus** takes LiDAR parameters (viewing angle, range, scanning pattern) and a target scene, looks for blind spots, and searches for a mirror pose that covers them. Intersection runs through a ray-tracing backend. The first backend is CPU [Embree](https://github.com/RenderKit/embree).
 
-<a name="features"></a>
+<a href="#readme-top">↑ Back to Top</a>
 
-## Features
+### Key Features
 
-- Proper raytracing calculation using SYCL (via AdaptiveCpp)
-- C API bindings
-- Python bindings (via pybind11)
-- Optional renderer visualization (via Raylib)
-- Extensible modular architecture
+- **Embree on CPU** -- `ARGUS_ENABLE_EMBREE_BACKEND` fetches Embree 4.4.1 binaries at configure time
+- **C and Python bindings** -- C API plus pybind11 3.x modules
+- **Modular build** -- enable algorithm, simulation, gui and bindings independently
+- **Modern C++23**
+- **GUI** -- custom gui module for easy visualization of algorithm and simulation
 
-<a name="architecture"></a>
+### Design Philosophy
 
-## Architecture
+1. **Backends are CMake options** -- Embree is `ARGUS_ENABLE_EMBREE_BACKEND`, on by default
+2. **Fetch release binaries** -- Embree is downloaded while configuring, not compiled with the project
+3. **Fetch only what a build needs** -- Embree is downloaded when its option is on, and pybind11 only when Python bindings are enabled
+4. **One glue target** -- `argus::argus` carries the enabled C++ modules; C translation units see only the C headers
 
-```
-bindings (capi, python)
-       |
-    renderer
-       |
-      algo
-       |
-     common
-       |
-      core
-```
+<a href="#readme-top">↑ Back to Top</a>
 
-| Module       | Description                                                         |
-| ------------ | ------------------------------------------------------------------- |
-| **core**     | Low-level primitives: assertions, logging, containers, stacktraces  |
-| **common**   | Shared types, config management, scene loading                      |
-| **algo**     | SYCL raytracing computation via AdaptiveCpp, optimization algorithm |
-| **renderer** | Visualization frontend (optional: can link algo)                    |
-| **bindings** | C API and Python bindings exposing algorithm results                |
+---
 
-<a name="prerequisites"></a>
+## Modules
 
-## Prerequisites
-
-| Tool   | Minimum Version        |
-| ------ | ---------------------- |
-| CMake  | 3.25                   |
-| GCC    | 13                     |
-| Clang  | 17                     |
-| Ninja  | (recommended)          |
-| ccache | (strongly recommended) |
-
-<a name="dependencies"></a>
-
-## Dependencies
-
-| Dependency  | Required Version | Notes                        |
-| ----------- | ---------------- | ---------------------------- |
-| AdaptiveCpp | ^25.10           | SYCL implementation (system) |
-| argparse    | ^3.0             | CLI argument parsing         |
-| assimp      | ^6.0             | 3D model loading             |
-| Boost       | >= 1.85          | stacktrace, unordered, etc.  |
-| Eigen       | ^5.0             | Linear algebra               |
-| doctest     | ^2.0             | Testing framework            |
-| glaze       | ^7.0             | JSON serialization           |
-| pybind11    | ^3.0             | Python bindings              |
-| spdlog      | ^1.12            | Logging library              |
-
-The project uses CPM (CMake Package Manager) to automatically download missing dependencies that are not found on the system. Dependencies marked as **system** (AdaptiveCpp) must be installed manually.
-
-[↑ Back to Top](#readme-top)
-
-<a name="building"></a>
-
-## Building
-
-<a name="quick-start"></a>
-
-### Quick start
+| Module            | Description                                          | Default                              |
+| ----------------- | ---------------------------------------------------- | ------------------------------------ |
+| `core`            | Foundation, shared geometry, and the problem context | ON                                   |
+| `algo`            | Optimization algorithm                               | ON                                   |
+| `common`          | Common functionality shared between `sim` and `gui`  | ON                                   |
+| `sim`             | Simulation and the Embree backend                    | ON                                   |
+| `gui`             | GUI that uses raylib with imgui                      | ON* (when building as a top project) |
+| `argus`           | C++ umbrella header `argus.hpp`                      | ON                                   |
+| `gui`             | Custom GUI module for easy visualization             | ON                                   |
+| `bindings/c`      | C API for algo and sim                               | OFF                                  |
+| `bindings/python` | Python package `argus`                               | OFF                                  |
 
 ```bash
-# Configure
-cmake --preset linux-gcc-relwithdebinfo \
-  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-# Build
-cmake --build --preset linux-gcc-relwithdebinfo
-
-# Run tests
-ctest --preset linux-gcc-relwithdebinfo
+cmake --preset linux-gcc-debug -DARGUS_BUILD_SIM=OFF -DARGUS_BUILD_PYTHON_BINDINGS=OFF
 ```
 
-<a name="available-presets"></a>
+Enabled options are also compiler definitions: `ARGUS_ENABLE_EMBREE_BACKEND`, `ARGUS_ENABLE_ALGO` (`ARGUS_BUILD_ALGO`), and `ARGUS_ENABLE_SIM` (`ARGUS_BUILD_SIM`). The umbrella headers include algo and sim when those macros are set.
 
-### Available presets
+<a href="#readme-top">↑ Back to Top</a>
 
-Presets follow the pattern `{os}-{compiler}-{build_type}`:
+---
 
-| OS      | Compiler           | Build Types                    |
-| ------- | ------------------ | ------------------------------ |
-| Linux   | gcc, clang         | debug, relwithdebinfo, release |
-| Windows | msvc, clang-cl, vs | debug, relwithdebinfo, release |
-| macOS   | clang              | debug, relwithdebinfo, release |
+## Getting Started
 
-<a name="manual-configure"></a>
+### Requirements
 
-### Manual configure
+| Tool             | Minimum                         | Recommended                     |
+| ---------------- | ------------------------------- | ------------------------------- |
+| **CMake**        | 3.30+                           | 3.31+                           |
+| **C++ compiler** | GCC 14+, Clang 19+, MSVC 19.34+ | GCC 15+, Clang 21+              |
+| **Python**       | 3.11+ (bindings and `scripts/`) | 3.11+ (bindings and `scripts/`) |
 
 ```bash
-cmake -B build -G Ninja \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-cmake --build build
+git clone https://github.com/RexarX/argus.git
+cd argus
 ```
 
-[↑ Back to Top](#readme-top)
+### Installing Dependencies
 
-<a name="cmake-options"></a>
+With `ARGUS_ENABLE_EMBREE_BACKEND=ON` (the default), CMake downloads the CPU archive from the [Embree v4.4.1 release](https://github.com/RenderKit/embree/releases/tag/v4.4.1) into `.cpm_cache/embree` and imports it. The first configure needs network access. Later configures reuse the archive. Turn the option off to skip the download.
 
-## CMake Options
+Published CPU archives:
 
-| Option                            | Default | Description                              |
-| --------------------------------- | ------- | ---------------------------------------- |
-| `DEVELOPER_MODE`                  | OFF     | Enable sanitizers and developer checks   |
-| `ARGUS_ENABLE_UNITY_BUILD`        | OFF     | Enable Unity/Jumbo builds                |
-| `ARGUS_ENABLE_WARNINGS_AS_ERRORS` | ON\*    | Treat warnings as errors                 |
-| `ARGUS_DOWNLOAD_PACKAGES`         | ON      | Download missing dependencies via CPM    |
-| `ARGUS_FORCE_DOWNLOAD_PACKAGES`   | OFF     | Force CPM download even if system exists |
-| `ARGUS_CHECK_PACKAGE_VERSIONS`    | ON      | Enforce dependency version requirements  |
-| `ARGUS_BUILD_TESTS`               | ON\*    | Build all test suites                    |
-| `ARGUS_BUILD_BENCHMARKS`          | ON\*    | Build benchmarks                         |
-| `ARGUS_BUILD_ALGO`                | ON      | Build the algo module                    |
-| `ARGUS_ALGO_BUILD_CLI`            | ON\*    | Build the algo CLI                       |
-| `ARGUS_BUILD_BINDINGS`            | ON\*    | Build bindings (CAPI + Python)           |
-| `ARGUS_BUILD_BINDINGS_CAPI`       | ON      | Build C API bindings                     |
-| `ARGUS_BUILD_BINDINGS_PYTHON`     | ON      | Build Python bindings                    |
-| `ARGUS_BUILD_RENDERER`            | ON\*    | Build the renderer                       |
-| `ARGUS_BUILD_RENDERER_WITH_ALGO`  | ON      | Link algo into renderer                  |
-| `ARGUS_ENABLE_SANITIZERS`         | OFF     | Enable sanitizers for debug builds       |
-| `ARGUS_SANITIZER_ADDRESS`         | OFF     | Enable AddressSanitizer                  |
-| `ARGUS_SANITIZER_UNDEFINED`       | OFF     | Enable UndefinedBehaviorSanitizer        |
-| `ARGUS_SANITIZER_THREAD`          | OFF     | Enable ThreadSanitizer                   |
-| `ARGUS_SANITIZER_MEMORY`          | OFF     | Enable MemorySanitizer (Clang only)      |
+| Platform     | Archive                            |
+| ------------ | ---------------------------------- |
+| Windows x64  | `embree-4.4.1.x64.windows.zip`     |
+| Linux x86_64 | `embree-4.4.1.x86_64.linux.tar.gz` |
+| macOS x86_64 | `embree-4.4.1.x86_64.macosx.zip`   |
+| macOS arm64  | `embree-4.4.1.arm64.macosx.zip`    |
 
-\* Defaults to `ON` when built as top-level project.
+Windows binaries are MSVC import libraries, so use the MSVC or clang-cl preset. Linux arm64 and Windows ARM64 are not in that release. The `.sycl` archives are not used.
 
-[↑ Back to Top](#readme-top)
+pybind11 is required only when `ARGUS_BUILD_PYTHON_BINDINGS=ON`: `find_package(pybind11)` runs first, and [CPM](https://github.com/cpm-cmake/CPM.cmake) fetches v3.1.0 when no 3.x package (`>= 3.1`, `< 4`) is found.
 
-<a name="installing-dependencies"></a>
+| Dependency | Required     | How it is found                                             |
+| ---------- | ------------ | ----------------------------------------------------------- |
+| Embree     | 4.4.1 CPU    | Downloaded from the GitHub release into `.cpm_cache/embree` |
+| pybind11   | 3.x `>= 3.1` | `find_package`, then CPM                                    |
 
-## Installing Dependencies
+<a href="#readme-top">↑ Back to Top</a>
 
-<a name="ubuntu-debian"></a>
+### Building
 
-### Ubuntu / Debian
+Preset pattern: `{os}-{compiler}-{build_type}`
 
 ```bash
-sudo apt install cmake ninja-build ccache \
-  libargparse-dev libassimp-dev libboost-dev \
-  doctest-dev pybind11-dev libspdlog-dev \
-
-# AdaptiveCpp (see dedicated section below)
+cmake --list-presets
+cmake --list-presets build
 ```
 
-<a name="arch-linux"></a>
-
-### Arch Linux
+#### Linux (GCC)
 
 ```bash
-sudo pacman -S cmake ninja ccache argparse assimp boost eigen doctest eigen glaze pybind11 spdlog
-
-# AdaptiveCpp using the AUR (paru, yay, pakku), or see dedicated section below to install from source
-paru -S adaptivecpp
+cmake --preset linux-gcc-debug
+cmake --build --preset linux-gcc-debug
 ```
 
-<a name="fedora-rhel"></a>
-
-### Fedora / RHEL
+#### Linux (Clang)
 
 ```bash
-sudo dnf install cmake ninja-build ccache \
-  argparse-devel assimp-devel boost-devel  \
-  eigen3-devel doctest-devel pybind11-devel spdlog-devel
-
-# AdaptiveCpp (see dedicated section below to install from source)
+cmake --preset linux-clang-debug
+cmake --build --preset linux-clang-debug
 ```
 
-<a name="macos-homebrew"></a>
+#### Windows (MSVC + Ninja)
 
-### macOS (Homebrew)
+From a shell where `vcvars64.bat` has already run:
+
+```bat
+cmake --preset windows-msvc-debug
+cmake --build --preset windows-msvc-debug
+```
+
+Or generate a Visual Studio solution:
+
+```bat
+cmake --preset windows-vs-debug
+```
+
+The MSVC preset keeps `cl.exe` as the host compiler and links the fetched Embree import library. `embree4.dll`, `tbb12.dll`, and `tbbmalloc.dll` are copied next to each example and next to `argus.<abi>.pyd`.
+
+#### macOS (Clang)
 
 ```bash
-brew install cmake ninja ccache argparse assimp boost eigen doctest glaze pybind11 spdlog
-
-# AdaptiveCpp from brew, or see dedicated section below to install from source
-brew install adaptivecpp
+cmake --preset macos-clang-debug
+cmake --build --preset macos-clang-debug
 ```
 
-<a name="adaptivecpp"></a>
-
-### AdaptiveCpp
-
-AdaptiveCpp is a SYCL implementation that serves as the core compute backend. It has additional dependencies: LLVM >= 15 (<= 20), Python 3, Boost.
-
-**Standard installation (Linux):**
-
-For a standard installation that has the most important features enabled, you will additionally need to install an official LLVM release >= 15.
-
-For example install LLVM 20:
+#### Recommended developer flags
 
 ```bash
-# Install LLVM (e.g., from apt.llvm.org)
-wget https://apt.llvm.org/llvm.sh
-chmod +x llvm.sh
-sudo ./llvm.sh 20 all
+cmake --preset linux-gcc-debug \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DARGUS_DEVELOPER_MODE=ON
 ```
+
+| Option                            | Default          | Notes                                                      |
+| --------------------------------- | ---------------- | ---------------------------------------------------------- |
+| `ARGUS_BUILD_ALGO`                | ON (top-level)   | Algorithm module                                           |
+| `ARGUS_ENABLE_EMBREE_BACKEND`     | ON               | Fetch and link Embree 4.4.1 CPU binaries                   |
+| `ARGUS_BUILD_SIM`                 | ON (top-level)   | Simulation module                                          |
+| `ARGUS_BUILD_COMMON`              | ON               | Application helpers. Static Assimp mesh loading            |
+| `ARGUS_BUILD_GUI`                 | ON (top-level)   | `argus_gui` raylib and ImGui window                        |
+| `ARGUS_BUILD_C_BINDINGS`          | ON (top-level)   | C API                                                      |
+| `ARGUS_BUILD_PYTHON_BINDINGS`     | ON (top-level)   | pybind11 modules                                           |
+| `ARGUS_BUILD_EXAMPLES`            | ON (top-level)   | `basic_example`, `basic_c_example`, `basic_python_example` |
+| `ARGUS_BUILD_SHARED`              | OFF              | One shared library instead of static archives              |
+| `ARGUS_DEVELOPER_MODE`            | OFF              | Sanitizers in Debug                                        |
+| `ARGUS_ENABLE_RELEASE_LTO`        | ON (top-level)   | Full LTO for Release                                       |
+| `ARGUS_ENABLE_LTO_RELWITHDEBINFO` | OFF              | Thin / incremental LTO for RelWithDebInfo                  |
+| `ARGUS_LINKER`                    | `AUTO` top-level | `AUTO`, `MOLD`, `LLD`, `RAD`, `DEFAULT`                    |
+| `ARGUS_ENABLE_WARNINGS_AS_ERRORS` | OFF              |                                                            |
+| `ARGUS_ENABLE_INSTALL`            | OFF              | Install rules and `argusConfig.cmake`                      |
+| `ARGUS_PYBIND11_VERSION`          | `3.1.0`          | CPM tag when find_package misses                           |
+
+### Run the Example
 
 ```bash
-# Install build dependencies before building AdaptiveCpp (python3, boost, cmake)
-
-# Build and install AdaptiveCpp
-git clone https://github.com/AdaptiveCpp/AdaptiveCpp
-cd AdaptiveCpp
-mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-make install
+cmake --preset linux-gcc-debug
+cmake --build --preset linux-gcc-debug --target basic_example
+./bin/examples/debug-linux-x64/basic_example
 ```
 
-If any encountered errors during the build, refer to the [official installation guide](https://adaptivecpp.github.io/AdaptiveCpp/installing/) for troubleshooting.
-
-**Advanced / custom backends:**
-
-AdaptiveCpp supports multiple compilation flows. To enable specific backends (CUDA, ROCm, etc.), additional flags and dependencies are needed. See the [official installation guide](https://adaptivecpp.github.io/AdaptiveCpp/installing/) for full details.
-
-<a name="windows"></a>
-
-### Windows
-
-Dependencies will be installed automatically via CPM
-
-For AdaptiveCpp on Windows (experimental), see the [official wiki](https://adaptivecpp.github.io/AdaptiveCpp/installing/).
-
-[↑ Back to Top](#readme-top)
-
-<a name="makefile"></a>
-
-## Makefile
-
-A convenience `Makefile` is provided for formatting and linting:
+On Windows the same target is `basic_example` under `bin/examples/debug-windows-x64/`. `basic_c_example` is the C API driver.
 
 ```bash
-make help              # Show available targets
-
-make format            # Format C/C++ files with clang-format
-make format-check      # Check formatting without modifying
-make lint              # Lint C/C++ files with clang-tidy
+cmake --build --preset linux-gcc-debug --target basic_python_example
 ```
 
-Variables:
+That runs `examples/python/basic.py` with `PYTHONPATH` set to the built extension directory (`bin/python/debug-linux-x64/` on Linux, `bin/python/debug-windows-x64/` on Windows). You can also run the script manually with that directory on `PYTHONPATH`.
 
-| Variable           | Description                           |
-| ------------------ | ------------------------------------- |
-| `FILES`            | Space-separated files/dirs to process |
-| `EXCLUDE`          | Space-separated files/dirs to exclude |
-| `CLANG_FORMAT_CFG` | Optional path to `.clang-format`      |
-| `CLANG_TIDY_CFG`   | Optional path to `.clang-tidy`        |
-| `BUILD_DIRS`       | Space-separated build dirs for lint   |
+<a href="#readme-top">↑ Back to Top</a>
 
-<a name="testing"></a>
+---
 
-## Testing
+## Using as a Dependency
 
-Tests use the [doctest](https://github.com/doctest/doctest) framework. Run via Ctest:
+Consumers should turn off examples and bindings they do not need:
+
+```cmake
+set(ARGUS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ARGUS_BUILD_PYTHON_BINDINGS OFF CACHE BOOL "" FORCE)
+```
+
+Configure downloads the Embree CPU binaries when `ARGUS_ENABLE_EMBREE_BACKEND` is ON. Set it to OFF to skip that download.
+
+### Method 1: `add_subdirectory`
+
+```cmake
+cmake_minimum_required(VERSION 3.30)
+project(MyTool LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+
+add_subdirectory(third_party/argus)
+
+add_executable(my_tool src/main.cpp)
+target_link_libraries(my_tool PRIVATE argus::argus)
+```
+
+### Method 2: `FetchContent`
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    argus
+    GIT_REPOSITORY https://github.com/RexarX/argus.git
+    GIT_TAG main
+    GIT_SHALLOW TRUE
+)
+
+set(ARGUS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ARGUS_BUILD_PYTHON_BINDINGS OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(argus)
+
+add_executable(my_tool src/main.cpp)
+target_link_libraries(my_tool PRIVATE argus::argus)
+```
+
+### Method 3: CPM
+
+```cmake
+include(cmake/CPM.cmake)
+
+CPMAddPackage(
+    NAME argus
+    GITHUB_REPOSITORY RexarX/argus
+    GIT_TAG main
+    OPTIONS
+        "ARGUS_BUILD_EXAMPLES OFF"
+        "ARGUS_BUILD_PYTHON_BINDINGS OFF"
+)
+
+add_executable(my_tool src/main.cpp)
+target_link_libraries(my_tool PRIVATE argus::argus)
+```
+
+### Method 4: Installed Package (`find_package`)
 
 ```bash
-# Using preset
-ctest --preset linux-gcc-debug
-
-# Or directly
-ctest --test-dir build/linux-gcc-debug
+cmake --preset linux-gcc-debug -DARGUS_ENABLE_INSTALL=ON
+cmake --build --preset linux-gcc-debug
+cmake --install build/linux-gcc-debug --prefix /opt/argus
 ```
 
-<a name="contact"></a>
+```cmake
+list(APPEND CMAKE_PREFIX_PATH "/opt/argus")
+find_package(argus CONFIG REQUIRED)
 
-## Contact
+add_executable(my_tool src/main.cpp)
+target_link_libraries(my_tool PRIVATE argus::argus)
+```
 
-**RexarX** - who727cares@gmail.com
+Installed files: `argusConfig.cmake`, `argusConfigVersion.cmake`, `argusTargets.cmake` ([`cmake/Install.cmake`](cmake/Install.cmake)). When the algorithm module was built with Embree, the package also installs those binaries and the config calls `find_dependency(embree)`.
 
-**Project Link:** [https://github.com/RexarX/HeliosEngine](https://github.com/RexarX/HeliosEngine)
+<a href="#readme-top">↑ Back to Top</a>
 
-<a name="license"></a>
+---
+
+## Documentation
+
+- [Embree](https://github.com/RenderKit/embree) -- CPU ray tracing used by the first backend
+- [Embree v4.4.1](https://github.com/RenderKit/embree/releases/tag/v4.4.1) -- binaries CMake downloads
+
+<a href="#readme-top">↑ Back to Top</a>
+
+---
+
+## Development
+
+### Code formatting
+
+```bash
+python scripts/format.py
+python scripts/format.py --check
+```
+
+### Other scripts
+
+```bash
+python scripts/lint.py --build-dir build/linux-gcc-debug
+```
+
+<a href="#readme-top">↑ Back to Top</a>
+
+---
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+Distributed under the MIT License. See [LICENSE][license-url] for details.
 
-[↑ Back to Top](#readme-top)
+<a href="#readme-top">↑ Back to Top</a>
+
+---
+
+## Contact
+
+**RexarX** -- who727cares@gmail.com
+
+**Project:** [github.com/RexarX/argus](https://github.com/RexarX/argus)
+
+<a href="#readme-top">↑ Back to Top</a>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 

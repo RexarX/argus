@@ -1,191 +1,288 @@
 #!/usr/bin/env python3
-"""Lints C++ source files using clang-tidy."""
+"""
+Argus Code Linting Tool
 
-from __future__ import annotations
+This script runs clang-tidy on C++ source code for static analysis.
+"""
 
 import argparse
+import os
+import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional
 
-import common
+from common import (
+    Colors,
+    add_config_override_argument,
+    add_extra_args_argument,
+    check_tool_installed,
+    enable_windows_colors,
+    find_source_files,
+    print_error,
+    print_info,
+    print_success,
+    print_warning,
+    resolve_config_file,
+)
+
+enable_windows_colors()
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Lint C/C++ files with clang-tidy. Without explicit files, recursively "
-            "lints all supported files from the current working directory."
+def lint_file(
+    file_path: Path,
+    build_dir: Path,
+    fix: bool = False,
+    config_file: Optional[Path] = None,
+    extra_args: Optional[List[str]] = None,
+) -> bool:
+    """
+    Lint a single file using clang-tidy
+
+    Args:
+        file_path: Path to the file to lint
+        build_dir: Path to the build directory containing compile_commands.json
+        fix: If True, automatically fix issues
+        config_file: Optional explicit .clang-tidy config to use instead of
+            the one clang-tidy would auto-discover
+        extra_args: Additional raw arguments to pass through to clang-tidy
+
+    Returns:
+        True if linting passed, False otherwise
+    """
+
+    try:
+        cmd = ["clang-tidy", f"-p={build_dir}", str(file_path)]
+        if fix:
+            cmd.append("--fix")
+        if config_file:
+            cmd.append(f"--config-file={config_file}")
+        if extra_args:
+            cmd.extend(extra_args)
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         )
+
+        # Print output
+        if result.stdout:
+            print(result.stdout)
+
+        return result.returncode == 0
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to lint {file_path}: {e}")
+        return False
+
+
+def find_compile_commands(base_dir: Path) -> Path:
+    """
+    Find compile_commands.json in the build directory or its subdirectories.
+    Searches common locations like build/conan/build for Conan layouts.
+
+    Args:
+        base_dir: Base build directory to search from
+
+    Returns:
+        Path to directory containing compile_commands.json
+
+    Raises:
+        FileNotFoundError: If compile_commands.json is not found
+    """
+
+    # Check direct path first
+    if (base_dir / "compile_commands.json").exists():
+        return base_dir
+
+    # Check common nested locations (Conan, multi-config generators, etc.)
+    common_subdirs = [
+        "build",
+        "debug",
+        "relwithdebinfo",
+        "release",
+    ]
+
+    for subdir in common_subdirs:
+        candidate = base_dir / subdir
+        if (candidate / "compile_commands.json").exists():
+            return candidate
+
+    # Try to find it recursively (limit depth to 3 levels)
+    for depth in range(3):
+        pattern = "/".join(["*"] * (depth + 1))
+        for candidate in base_dir.glob(f"{pattern}/compile_commands.json"):
+            return candidate.parent
+
+    raise FileNotFoundError(
+        f"compile_commands.json not found in {base_dir} or its subdirectories"
     )
-    parser.add_argument(
-        "files",
-        nargs="*",
-        help="Files or directories to lint.",
-    )
-    parser.add_argument(
-        "-c",
-        "--config",
-        help="Path to .clang-tidy file.",
-    )
-    parser.add_argument(
-        "-b",
-        "--build-dir",
-        action="append",
-        dest="build_dirs",
-        help="Build directory with compile_commands.json. Can be used multiple times.",
-    )
-    parser.add_argument(
-        "-e",
-        "--exclude",
-        action="append",
-        dest="excludes",
-        metavar="PATH",
-        help=(
-            "File or directory to exclude. Can be used multiple times. "
-            f"Defaults to: {', '.join(common.DEFAULT_EXCLUDED_DIRS)}"
-        ),
-    )
-    return parser
 
 
-def _resolve_config(args_config: str | None, root_dir: Path) -> Path | None:
-    if args_config:
-        config_path = Path(args_config)
-        if not config_path.is_absolute():
-            config_path = (root_dir / config_path).resolve()
-        if not config_path.is_file():
-            common.error(f"clang-tidy config not found: {config_path}")
-            return None
-        return config_path
+def detect_platform(platform_arg: str = None) -> str:
+    """
+    Detect the platform name (linux, macos, windows).
+    If platform_arg is provided, use it.
+    """
 
-    discovered = common.find_upward_file(".clang-tidy", root_dir)
-    if discovered:
-        return discovered
-
-    common.warn("No .clang-tidy found; clang-tidy defaults will be used")
-    return None
-
-
-def _resolve_build_dirs(
-    root_dir: Path,
-    user_build_dirs: list[str] | None,
-) -> list[Path]:
-    if user_build_dirs:
-        resolved: list[Path] = []
-        for directory in user_build_dirs:
-            candidate = Path(directory)
-            if not candidate.is_absolute():
-                candidate = (root_dir / candidate).resolve()
-            if candidate.is_dir():
-                resolved.append(candidate)
-            else:
-                common.warn(f"Skipping missing build directory: {candidate}")
-        return sorted(set(resolved))
-
-    discovered = common.discover_named_dirs(root_dir, "build")
-    return discovered
-
-
-def _create_compile_db_plan(
-    root_dir: Path,
-    compile_db_dirs: list[Path],
-    explicit_files: list[str],
-    exclusions: list[Path],
-) -> list[tuple[Path, list[Path]]]:
-    files = common.collect_cpp_files(explicit_files, root_dir, exclusions)
-    if explicit_files and not files:
-        return []
-
-    plan: list[tuple[Path, list[Path]]] = []
-    for compile_db_dir in compile_db_dirs:
-        source_root = common.infer_source_root_from_build_dir(compile_db_dir)
-        if source_root is None:
-            common.warn(
-                f"Cannot infer source root for compile database: {compile_db_dir}"
-            )
-            continue
-
-        if files:
-            selected = [
-                file_path
-                for file_path in files
-                if common.is_relative_to(file_path, source_root)
-            ]
-        else:
-            selected = common.collect_cpp_files([], source_root, exclusions)
-
-        if selected:
-            plan.append((compile_db_dir, selected))
-
-    return plan
-
-
-def _build_command(
-    compile_db_dir: Path,
-    config_path: Path | None,
-    file_batch: list[Path],
-) -> list[str]:
-    command = ["clang-tidy", f"-p={compile_db_dir}"]
-    if config_path:
-        command.append(f"--config-file={config_path}")
-    command.extend(str(path) for path in file_batch)
-    return command
+    if platform_arg:
+        return platform_arg.lower()
+    uname = os.uname().sysname if hasattr(os, "uname") else sys.platform
+    if uname.lower().startswith("linux"):
+        return "linux"
+    elif uname.lower().startswith("darwin"):
+        return "macos"
+    elif sys.platform.startswith("win"):
+        return "windows"
+    return "unknown"
 
 
 def main() -> int:
-    parser = _build_parser()
+    """Main entry point"""
+
+    parser = argparse.ArgumentParser(
+        description="Run clang-tidy on C++ source code for static analysis"
+    )
+    parser.add_argument(
+        "--fix", action="store_true", help="Automatically fix issues where possible"
+    )
+    parser.add_argument(
+        "--platform",
+        type=str,
+        default=None,
+        help="Target platform (linux, macos, windows). Default: auto-detect",
+    )
+    parser.add_argument(
+        "--type",
+        type=str,
+        default=None,
+        help="Build type (debug, release, relwithdebinfo). Default: release",
+    )
+    parser.add_argument(
+        "--build-dir",
+        type=str,
+        default=None,
+        help="Build directory containing compile_commands.json (default: build/<type>/<platform>)",
+    )
+    add_config_override_argument(parser, "clang-tidy", ".clang-tidy")
+    add_extra_args_argument(parser, "clang-tidy")
+    parser.add_argument(
+        "--no-color", action="store_true", help="Disable colored output"
+    )
+
     args = parser.parse_args()
 
-    root_dir = Path.cwd().resolve()
-    config_path = _resolve_config(args.config, root_dir)
-    if args.config and config_path is None:
-        return 2
+    if args.no_color:
+        Colors.disable()
 
-    exclusions = common.resolve_exclusions(args.excludes, root_dir)
-    if not common.validate_no_overlap(args.files, exclusions, root_dir):
-        return 2
+    # Get script and project directories
+    script_dir = Path(__file__).parent.resolve()
+    project_root = script_dir.parent
 
-    build_dirs = _resolve_build_dirs(root_dir, args.build_dirs)
-    if not build_dirs:
-        common.error("No build directories found")
-        return 2
+    print_info("Argus Code Linting Tool")
+    print_info("=" * 30)
 
-    compile_db_dirs = common.discover_compile_database_dirs(build_dirs)
-    if not compile_db_dirs:
-        common.error("No compile_commands.json found under provided build directories")
-        return 2
-
-    plan = _create_compile_db_plan(root_dir, compile_db_dirs, args.files, exclusions)
-    if not plan:
-        common.warn("No C/C++ files selected for lint")
-        return 0
-
-    total_files = sum(len(files) for _, files in plan)
-    common.info(f"Found {len(compile_db_dirs)} compile database(s)")
-    common.info(f"Linting {total_files} file assignment(s)")
-    if config_path:
-        common.info(f"Using config: {config_path}")
-    if exclusions:
-        common.info(f"Excluding: {', '.join(str(e) for e in exclusions)}")
-
-    failed = False
-    for compile_db_dir, file_paths in plan:
-        common.info(
-            f"Linting {len(file_paths)} file(s) with compile database: {compile_db_dir}"
-        )
-        for batch in common.split_chunks(file_paths, chunk_size=20):
-            command = _build_command(compile_db_dir, config_path, batch)
-            result = common.run_command(command, cwd=root_dir)
-            common.print_completed_output(result)
-            if result.returncode != 0:
-                failed = True
-
-    if failed:
-        common.error("Lint failed")
+    # Check if clang-tidy is installed
+    if not check_tool_installed("clang-tidy"):
+        print_error("clang-tidy is not installed. Please install it first.")
         return 1
 
-    common.success("Lint completed")
-    return 0
+    # Resolve an explicit config file override, if given
+    try:
+        config_file = resolve_config_file(args.config_file, project_root)
+    except FileNotFoundError as error:
+        print_error(str(error))
+        return 1
+
+    # Detect platform and build type
+    platform = detect_platform(args.platform)
+    build_type = args.type.lower() if args.type else "release"
+
+    # Resolve build directory
+    if args.build_dir:
+        build_dir = Path(args.build_dir)
+        if not build_dir.is_absolute():
+            build_dir = project_root / build_dir
+    else:
+        build_dir = project_root / "build" / build_type / platform
+    build_dir = build_dir.resolve()
+
+    print_info(f"Platform: {platform}")
+    print_info(f"Build type: {build_type}")
+    print_info(f"Searching for compile_commands.json in: {build_dir}")
+
+    # Find compile_commands.json
+    try:
+        compile_commands_dir = find_compile_commands(build_dir)
+        print_success(f"Found compile_commands.json in: {compile_commands_dir}")
+    except FileNotFoundError:
+        print_error(
+            f"compile_commands.json not found in {build_dir} or its subdirectories."
+        )
+        print_error(
+            "Please build the project first with CMAKE_EXPORT_COMPILE_COMMANDS=ON."
+        )
+        return 1
+
+    # Use the directory containing compile_commands.json
+    build_dir = compile_commands_dir
+
+    # Define source directories
+    source_dirs = [
+        project_root / "src",
+        # project_root / "tests",
+        project_root / "examples",
+    ]
+
+    # Define file extensions to process (only source files)
+    extensions = ["cpp", "hpp", "inl", "c", "h"]
+
+    # Define directories to exclude
+    exclude_dirs = [project_root / "third-party", project_root / "examples"]
+
+    # Find all source files
+    print_info("Finding source files...")
+    source_files = find_source_files(source_dirs, extensions, exclude_dirs)
+
+    if not source_files:
+        print_warning(
+            f"No source files found. Checked directories: {', '.join(str(d) for d in source_dirs)}"
+        )
+        return 0
+
+    print_info(f"Found {len(source_files)} source files to process.")
+
+    if config_file:
+        print_info(f"Using config file override: {config_file}")
+    if args.extra_args:
+        print_info(f"Extra clang-tidy arguments: {' '.join(args.extra_args)}")
+
+    # Process files
+    if args.fix:
+        print_info("Running clang-tidy with automatic fixes enabled...")
+    else:
+        print_info("Running clang-tidy...")
+
+    has_errors = False
+    for file_path in source_files:
+        print_info(f"Linting: {file_path}")
+        if not lint_file(
+            file_path,
+            build_dir,
+            args.fix,
+            config_file=config_file,
+            extra_args=args.extra_args,
+        ):
+            print_error(f"Linting failed for {file_path}")
+            has_errors = True
+
+    if not has_errors:
+        print_success("All files passed linting successfully.")
+        return 0
+    else:
+        print_error("Linting failed for some files.")
+        return 1
 
 
 if __name__ == "__main__":

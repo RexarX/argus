@@ -1,98 +1,50 @@
-set(MODULE_NAME "BINDINGS_PYTHON")
-
-set(ARGUS_BINDINGS_PYTHON_HEADERS
+set(_argus_python_sources
+    argus/src/module.cpp
+    argus/src/pch.hpp
+    core/src/log.cpp
+    core/src/assert.cpp
 )
 
-set(ARGUS_BINDINGS_PYTHON_SOURCES
-    src/module.cpp
-)
+set(_argus_python_libs argus::core)
 
-set(ARGUS_BINDINGS_PYTHON_ALL_FILES
-    ${ARGUS_BINDINGS_PYTHON_HEADERS}
-    ${ARGUS_BINDINGS_PYTHON_SOURCES}
-)
-
-add_library(argus_bindings_python_lib STATIC ${ARGUS_BINDINGS_PYTHON_ALL_FILES})
-add_library(argus::bindings::python_lib ALIAS argus_bindings_python_lib)
-
-include(${PROJECT_SOURCE_DIR}/cmake/TargetUtils.cmake)
-
-argus_target_set_cxx_standard(argus_bindings_python_lib STANDARD 23)
-argus_target_set_platform(argus_bindings_python_lib)
-argus_target_set_output_dirs(argus_bindings_python_lib MODULE bindings/python)
-argus_target_set_folder(argus_bindings_python_lib "argus/bindings/python")
-
-argus_target_add_pch(argus_bindings_python_lib ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
-argus_target_set_warnings(argus_bindings_python_lib)
-argus_target_set_optimization(argus_bindings_python_lib)
-argus_target_enable_lto(argus_bindings_python_lib)
-
-include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
-argus_require_dependency(pybind11)
-
-target_include_directories(argus_bindings_python_lib
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
-target_link_libraries(argus_bindings_python_lib PRIVATE
-    argus::core
-    argus::common
-    argus::algo
-    argus::pybind11::pybind11
-)
-
-pybind11_add_module(argus_bindings_python MODULE
-    ${ARGUS_BINDINGS_PYTHON_ALL_FILES}
-)
-
-argus_target_set_cxx_standard(argus_bindings_python STANDARD 23)
-argus_target_set_platform(argus_bindings_python)
-argus_target_set_output_dirs(argus_bindings_python MODULE bindings/python)
-argus_target_set_folder(argus_bindings_python "argus/bindings/python")
-
-argus_target_add_pch(argus_bindings_python ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
-argus_target_set_warnings(argus_bindings_python)
-argus_target_set_optimization(argus_bindings_python)
-# argus_target_enable_lto(argus_bindings_python) # Could cause issues with pybind11
-
-set_target_properties(argus_bindings_python PROPERTIES
-    OUTPUT_NAME "argus_bindings"
-    PREFIX ""
-)
-
-target_include_directories(argus_bindings_python
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
-target_link_libraries(argus_bindings_python PRIVATE
-    argus::core
-    argus::algo
-    argus::pybind11::pybind11
-)
-
-if(BUILD_TESTING)
-  add_subdirectory(tests)
+if(ARGUS_BUILD_ALGO)
+  list(APPEND _argus_python_sources algo/src/module.cpp)
+  list(APPEND _argus_python_libs argus::algo)
 endif()
 
-# Install path option
-set(ARGUS_PYTHON_INSTALL_DIR "" CACHE PATH
-    "Installation directory for Python bindings")
+if(ARGUS_BUILD_SIM)
+  list(APPEND _argus_python_sources sim/src/module.cpp)
+  list(APPEND _argus_python_libs argus::sim)
+endif()
 
-# Installation
-if(ARGUS_PYTHON_INSTALL_DIR)
-  install(TARGETS argus_bindings_python
-      LIBRARY DESTINATION ${ARGUS_PYTHON_INSTALL_DIR}
-  )
+pybind11_add_module(argus_python ${_argus_python_sources})
+target_link_libraries(argus_python PRIVATE ${_argus_python_libs})
+
+# `argus.<abi>.pyd`. The ABI suffix is the CPython tag (for example
+# `.cp314-win_amd64`), not the argus version. Submodules are registered on
+# this module, so `import argus.algo` does not need a package directory.
+# Embree's shared libraries are copied beside this file.
+set_target_properties(argus_python PROPERTIES OUTPUT_NAME "argus")
+
+argus_apply_conventions(argus_python ALLOW_EXCEPTIONS)
+argus_target_set_output_dirs(argus_python CUSTOM_FOLDER python)
+argus_target_set_folder(argus_python "bindings/python")
+argus_target_add_pch(argus_python
+    "${CMAKE_CURRENT_SOURCE_DIR}/argus/src/pch.hpp")
+
+if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+    AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"))
+  target_compile_options(argus_python PRIVATE /EHsc /GR)
+  target_compile_definitions(argus_python PRIVATE _HAS_EXCEPTIONS=1)
 else()
-  install(TARGETS argus_bindings_python
-      LIBRARY DESTINATION lib
-  )
+  target_compile_options(argus_python PRIVATE -fexceptions -frtti)
+endif()
+
+target_include_directories(argus_python PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/argus/src
+)
+
+if(ARGUS_ENABLE_EMBREE_BACKEND AND TARGET argus_sim)
+  argus_target_link_embree(argus_python)
+  argus_target_copy_embree_runtime(argus_python)
 endif()

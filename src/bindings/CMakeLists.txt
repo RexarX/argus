@@ -1,10 +1,7 @@
-option(ARGUS_BUILD_BINDINGS_CAPI "Build CAPI bindings" ON)
-option(ARGUS_BUILD_BINDINGS_PYTHON "Build Python bindings" ON)
-
-if(ARGUS_BUILD_BINDINGS_CAPI)
-  add_subdirectory(capi)
+if(ARGUS_BUILD_C_BINDINGS)
+  add_subdirectory(c)
 endif()
 
-if(ARGUS_BUILD_BINDINGS_PYTHON)
+if(ARGUS_BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()

@@ -1,126 +1,105 @@
-set(MODULE_NAME "CORE")
-
-include(${PROJECT_SOURCE_DIR}/cmake/Dependencies.cmake)
-
 set(ARGUS_CORE_HEADERS
-    include/argus/assert.hpp
-    include/argus/compiler.hpp
-    include/argus/platform.hpp
-    include/argus/stacktrace.hpp
-
-    include/argus/container/static_string.hpp
-
-    include/argus/log/config.hpp
-    include/argus/log/logger.hpp
-
-    include/argus/utils/filesystem.hpp
-    include/argus/utils/hash.hpp
+    include/argus/utils/format.hpp
     include/argus/utils/macro.hpp
-    include/argus/utils/type_info.hpp
+    include/argus/assert.hpp
+    include/argus/compiler.h
+    include/argus/compiler.hpp
+    include/argus/core.hpp
+    include/argus/error.hpp
+    include/argus/lidar.hpp
+    include/argus/log.hpp
+    include/argus/math.hpp
+    include/argus/memory/aligned_alloc.hpp
+    include/argus/memory/arena.hpp
+    include/argus/memory/bump.hpp
+    include/argus/memory/common.hpp
+    include/argus/memory/offset.hpp
+    include/argus/memory/temporary_storage.hpp
+    include/argus/mirror.hpp
+    include/argus/platform.h
+    include/argus/platform.hpp
+    include/argus/types.hpp
+    include/argus/version.hpp
+    include/argus/version_macros.h.in
 )
 
 set(ARGUS_CORE_SOURCES
     src/assert.cpp
-    src/stacktrace.cpp
-
-    src/log/logger.cpp
+    src/lidar.cpp
+    src/log.cpp
+    src/memory/aligned_alloc.cpp
+    src/memory/arena.cpp
+    src/memory/bump.cpp
+    src/memory/offset.cpp
+    src/memory/temporary_storage.cpp
+    src/pch.hpp
+    src/version.cpp
 )
 
-set(ARGUS_CORE_ALL_FILES
+set(ARGUS_CORE_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/argus/version_macros.h.in"
+    "${ARGUS_CORE_GENERATED_INCLUDE_DIR}/argus/version_macros.h"
+    @ONLY
+)
+
+set(ARGUS_CORE_FILES
     ${ARGUS_CORE_HEADERS}
     ${ARGUS_CORE_SOURCES}
+    "${ARGUS_CORE_GENERATED_INCLUDE_DIR}/argus/version_macros.h"
 )
 
-add_library(argus_core STATIC ${ARGUS_CORE_ALL_FILES})
+set(ARGUS_CORE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include" PARENT_SCOPE)
+set(ARGUS_CORE_GENERATED_INCLUDE_DIR "${ARGUS_CORE_GENERATED_INCLUDE_DIR}" PARENT_SCOPE)
+
+add_library(argus_core STATIC ${ARGUS_CORE_FILES})
 add_library(argus::core ALIAS argus_core)
 
-include(${PROJECT_SOURCE_DIR}/cmake/TargetUtils.cmake)
+set_target_properties(argus_core PROPERTIES
+    OUTPUT_NAME argus_core
+    EXPORT_NAME core
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    POSITION_INDEPENDENT_CODE ON
+)
 
-argus_target_set_cxx_standard(argus_core STANDARD 23)
-argus_target_set_platform(argus_core)
-argus_target_set_output_dirs(argus_core MODULE core)
-argus_target_set_folder(argus_core "argus/core")
+argus_apply_conventions(argus_core)
+argus_target_set_output_dirs(argus_core)
+argus_target_set_folder(argus_core "core")
+argus_target_add_pch(argus_core "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")
 
-argus_target_add_pch(argus_core ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
-argus_target_set_warnings(argus_core)
-argus_target_set_optimization(argus_core)
-argus_target_enable_lto(argus_core)
-argus_target_enable_sanitizers(argus_core)
+target_link_libraries(argus_core PUBLIC argus::lib::eigen)
+
+if(ARGUS_USE_MIMALLOC)
+  target_compile_definitions(argus_core PUBLIC ARGUS_USE_MIMALLOC)
+  target_link_libraries(argus_core PRIVATE argus::lib::mimalloc)
+endif()
+
+if(ARGUS_OVERRIDE_GLOBAL_ALLOC)
+  target_sources(argus_core PRIVATE src/memory/global_alloc.cpp)
+  target_compile_definitions(argus_core PUBLIC ARGUS_OVERRIDE_GLOBAL_ALLOC)
+endif()
 
 target_compile_definitions(argus_core PUBLIC
-    $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:ARGUS_ENABLE_ASSERTS;ARGUS_ENABLE_STACKTRACE>
+    $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:ARGUS_ENABLE_ASSERT>
 )
 
 target_include_directories(argus_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${ARGUS_CORE_GENERATED_INCLUDE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-argus_require_dependency(Boost)
-
-# Platform-specific stacktrace backend
-if(ARGUS_USE_STL_STACKTRACE)
-  message(STATUS "argus_core: Using C++23 STL stacktrace for Capture()")
-  target_link_libraries(argus_core PUBLIC
-      $<BUILD_INTERFACE:argus::stl_stacktrace>
+if(ARGUS_ENABLE_INSTALL)
+  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+      FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h" PATTERN "*.inl"
   )
-endif()
-
-if(UNIX AND NOT APPLE)
-  execute_process(
-      COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libbacktrace.a
-      OUTPUT_VARIABLE BACKTRACE_LIBRARY_FROM_COMPILER
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      ERROR_QUIET
+  install(FILES "${ARGUS_CORE_GENERATED_INCLUDE_DIR}/argus/version_macros.h"
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/argus
   )
-
-  set(BACKTRACE_LIBRARY "")
-  if(BACKTRACE_LIBRARY_FROM_COMPILER
-        AND NOT BACKTRACE_LIBRARY_FROM_COMPILER STREQUAL "libbacktrace.a"
-        AND EXISTS "${BACKTRACE_LIBRARY_FROM_COMPILER}")
-    set(BACKTRACE_LIBRARY "${BACKTRACE_LIBRARY_FROM_COMPILER}")
-  else()
-    find_library(BACKTRACE_LIBRARY NAMES backtrace libbacktrace)
-  endif()
-
-  find_library(DL_LIBRARY NAMES dl)
-
-  if(BACKTRACE_LIBRARY)
-    target_link_libraries(argus_core PRIVATE ${BACKTRACE_LIBRARY})
-    if(DL_LIBRARY)
-      target_link_libraries(argus_core PRIVATE ${DL_LIBRARY})
-    endif()
-    get_filename_component(BACKTRACE_INCLUDE_DIR "${BACKTRACE_LIBRARY}" DIRECTORY)
-    get_filename_component(BACKTRACE_INCLUDE_DIR "${BACKTRACE_INCLUDE_DIR}/include" ABSOLUTE)
-    if(EXISTS "${BACKTRACE_INCLUDE_DIR}/backtrace.h")
-      target_include_directories(argus_core PRIVATE ${BACKTRACE_INCLUDE_DIR})
-    endif()
-    target_compile_definitions(argus_core PRIVATE BOOST_STACKTRACE_USE_BACKTRACE)
-  else()
-    if(DL_LIBRARY)
-      target_link_libraries(argus_core PRIVATE ${DL_LIBRARY})
-    endif()
-    target_compile_definitions(argus_core PRIVATE BOOST_STACKTRACE_USE_ADDR2LINE)
-    message(STATUS "argus_core: libbacktrace not found, using Boost addr2line backend")
-  endif()
-
-  target_link_options(argus_core INTERFACE
-      $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-rdynamic>
-  )
-elseif(APPLE)
-  target_compile_definitions(argus_core PRIVATE BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED)
-elseif(WIN32)
-  target_compile_definitions(argus_core PRIVATE BOOST_STACKTRACE_USE_WINDBG)
-endif()
-
-target_compile_definitions(argus_core PRIVATE SPDLOG_HEADER_ONLY SPDLOG_USE_STD_FORMAT)
-
-argus_require_dependency(spdlog)
-target_link_libraries(argus_core PRIVATE argus::spdlog::spdlog_header_only)
-
-if(BUILD_TESTING)
-  add_subdirectory(tests)
 endif()

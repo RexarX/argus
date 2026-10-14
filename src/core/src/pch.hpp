@@ -1,26 +1,28 @@
 #pragma once
 
 #include <algorithm>
-#include <cctype>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <bitset>
+#include <cmath>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <expected>
 #include <format>
-#include <functional>
-#include <iterator>
+#include <limits>
+#include <memory>
+#include <memory_resource>
+#include <new>
+#include <print>
 #include <source_location>
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
-
-#if defined(__cpp_lib_print) && (__cpp_lib_print >= 202302L)
-#include <print>
-#endif
-
-#ifdef ARGUS_USE_STL_STACKTRACE
-#include <stacktrace>
-#else
-#include <boost/stacktrace.hpp>
-#endif
+#include <type_traits>
+#include <utility>
+#include <version>
