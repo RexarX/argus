@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
 #include <new>
 
 // mimalloc global hooks might bypass MSVC ASan-instrumented allocation. In this
@@ -88,12 +89,20 @@ void raw_aligned_free(void* ptr) noexcept {
 #endif
 }
 
+[[noreturn]] void on_allocation_failure() {
+#if defined(__cpp_exceptions) && __cpp_exceptions
+    throw std::bad_alloc{};
+#else
+    std::terminate();
+#endif
+}
+
 }  // namespace
 
 ARGUS_GLOBAL_ALLOC_KEEP void* operator new(size_t size) {
     void* const ptr = raw_alloc(size);
     if (ptr == nullptr) [[unlikely]] {
-        throw std::bad_alloc{};
+        on_allocation_failure();
     }
 
     return ptr;
@@ -147,7 +156,7 @@ ARGUS_GLOBAL_ALLOC_KEEP void* operator new(size_t size,
                                            std::align_val_t alignment) {
     void* const ptr = raw_aligned_alloc(size, alignment);
     if (ptr == nullptr) [[unlikely]] {
-        throw std::bad_alloc{};
+        on_allocation_failure();
     }
 
     return ptr;

@@ -85,6 +85,26 @@ cmake_dependent_option(ARGUS_BUILD_COMMON "Build the common module" ON
 cmake_dependent_option(ARGUS_BUILD_GUI "Build the GUI application"
                        ${PROJECT_IS_TOP_LEVEL}
                        "ARGUS_BUILD_ALGO;ARGUS_BUILD_SIM;ARGUS_BUILD_COMMON" OFF)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  cmake_dependent_option(ARGUS_GUI_NFD_WAYLAND
+      "Linux GUI: nfd Wayland support (needs wayland-protocols XML at configure time)"
+      ON
+      "ARGUS_BUILD_GUI"
+      OFF)
+  cmake_dependent_option(ARGUS_GUI_NFD_X11
+      "Linux GUI: nfd X11 support"
+      ON
+      "ARGUS_BUILD_GUI"
+      OFF)
+  cmake_dependent_option(ARGUS_GUI_NFD_USE_SYSTEM_WAYLAND_PROTOCOLS
+      "Linux GUI: use installed wayland-protocols instead of downloading a copy"
+      ON
+      "ARGUS_BUILD_GUI;ARGUS_GUI_NFD_WAYLAND"
+      OFF)
+  set(ARGUS_WAYLAND_PROTOCOLS_DIR "" CACHE PATH
+      "Directory containing wayland-protocols XML (e.g. /usr/share/wayland-protocols)"
+  )
+endif()
 option(ARGUS_BUILD_C_BINDINGS "Build C bindings" OFF)
 option(ARGUS_BUILD_PYTHON_BINDINGS "Build Python bindings" OFF)
 option(ARGUS_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
@@ -97,11 +117,14 @@ option(ARGUS_ENABLE_EMBREE_BACKEND "Fetch and link the Embree CPU backend" ON)
 option(ARGUS_USE_MIMALLOC "Allocate through mimalloc" ON)
 option(ARGUS_OVERRIDE_GLOBAL_ALLOC "Replace global operator new and delete" ON)
 
-cmake_dependent_option(ARGUS_ENABLE_LTO_RELWITHDEBINFO "Enable LTO for RelWithDebInfo" OFF
-                       "ARGUS_ENABLE_RELEASE_LTO" OFF)
+cmake_dependent_option(
+    ARGUS_ENABLE_LTO_RELWITHDEBINFO "Enable LTO for RelWithDebInfo" OFF
+    "ARGUS_ENABLE_RELEASE_LTO" OFF
+)
 option(ARGUS_MANAGE_TOOLCHAIN
     "Allow argus to set CMAKE_LINKER / CMAKE_AR / CMAKE_RANLIB for the whole project"
-    ${PROJECT_IS_TOP_LEVEL})
+    ${PROJECT_IS_TOP_LEVEL}
+)
 
 include(ClangArchiver)
 argus_configure_clang_archiver()
@@ -185,6 +208,13 @@ if(ARGUS_BUILD_COMMON)
 endif()
 
 if(ARGUS_BUILD_GUI)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(NOT ARGUS_GUI_NFD_WAYLAND AND NOT ARGUS_GUI_NFD_X11)
+      message(FATAL_ERROR
+          "ARGUS_BUILD_GUI is ON: enable ARGUS_GUI_NFD_WAYLAND or ARGUS_GUI_NFD_X11"
+      )
+    endif()
+  endif()
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Raylib.cmake")
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ImGui.cmake")
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/RlImGui.cmake")

@@ -25,7 +25,8 @@ function(_argus_embree_asset OUT_NAME OUT_HASH)
     set(${OUT_NAME} "embree-${ARGUS_EMBREE_VERSION}.x64.windows.zip" PARENT_SCOPE)
     set(${OUT_HASH}
         "5aa1fa3161a720f9c610b06c652b80f421cb2b1fe8221fdf92b74157336fdf8f"
-        PARENT_SCOPE)
+        PARENT_SCOPE
+    )
     return()
   endif()
 
@@ -34,14 +35,16 @@ function(_argus_embree_asset OUT_NAME OUT_HASH)
       set(${OUT_NAME} "embree-${ARGUS_EMBREE_VERSION}.arm64.macosx.zip" PARENT_SCOPE)
       set(${OUT_HASH}
           "12236c79f37e98224582f7fa9e113160b3d4eb5eb5f24846a96faf05e32a5562"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
       return()
     endif()
     if(BIN_ARCHITECTURE STREQUAL "x64")
       set(${OUT_NAME} "embree-${ARGUS_EMBREE_VERSION}.x86_64.macosx.zip" PARENT_SCOPE)
       set(${OUT_HASH}
           "bbbfc0a1beea14c157d17349b71151b846baad884d81fb5da6d74fb8b0bacaec"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
       return()
     endif()
     message(FATAL_ERROR
@@ -60,7 +63,8 @@ function(_argus_embree_asset OUT_NAME OUT_HASH)
     set(${OUT_NAME} "embree-${ARGUS_EMBREE_VERSION}.x86_64.linux.tar.gz" PARENT_SCOPE)
     set(${OUT_HASH}
         "aa506a55a581055e30cdc8819557dd4163ed514fc63ce4c1d66a6df82631be3f"
-        PARENT_SCOPE)
+        PARENT_SCOPE
+    )
     return()
   endif()
 
@@ -78,6 +82,28 @@ function(_argus_embree_root_name ASSET OUT_VAR)
     string(REGEX REPLACE "\\.zip$" "" _name "${ASSET}")
   endif()
   set(${OUT_VAR} "${_name}" PARENT_SCOPE)
+endfunction()
+
+function(_argus_embree_resolve_prefix CACHE ROOT_NAME OUT_ROOT OUT_LIBDIR)
+  set(_candidates "${CACHE}/${ROOT_NAME}" "${CACHE}")
+  foreach(_prefix IN LISTS _candidates)
+    if(EXISTS
+        "${_prefix}/lib64/cmake/embree-${ARGUS_EMBREE_VERSION}/embree-config.cmake"
+      )
+      set(${OUT_ROOT} "${_prefix}" PARENT_SCOPE)
+      set(${OUT_LIBDIR} "lib64" PARENT_SCOPE)
+      return()
+    endif()
+    if(EXISTS
+        "${_prefix}/lib/cmake/embree-${ARGUS_EMBREE_VERSION}/embree-config.cmake"
+      )
+      set(${OUT_ROOT} "${_prefix}" PARENT_SCOPE)
+      set(${OUT_LIBDIR} "lib" PARENT_SCOPE)
+      return()
+    endif()
+  endforeach()
+  set(${OUT_ROOT} "" PARENT_SCOPE)
+  set(${OUT_LIBDIR} "" PARENT_SCOPE)
 endfunction()
 
 function(_argus_embree_collect_runtime PREFIX OUT_VAR)
@@ -98,11 +124,14 @@ function(_argus_embree_collect_runtime PREFIX OUT_VAR)
     )
     list(REMOVE_DUPLICATES _files)
   else()
-    file(GLOB _files
-        "${PREFIX}/lib/libembree4.so*"
-        "${PREFIX}/lib/libtbb.so*"
-        "${PREFIX}/lib/libtbbmalloc.so*"
-    )
+    foreach(_libdir IN ITEMS lib64 lib)
+      file(GLOB _libdir_files
+          "${PREFIX}/${_libdir}/libembree4.so*"
+          "${PREFIX}/${_libdir}/libtbb.so*"
+          "${PREFIX}/${_libdir}/libtbbmalloc.so*"
+      )
+      list(APPEND _files ${_libdir_files})
+    endforeach()
     list(REMOVE_DUPLICATES _files)
   endif()
 
@@ -136,7 +165,6 @@ function(argus_setup_embree)
   set(_cache "${CPM_SOURCE_CACHE}/embree")
   set(_archive "${_cache}/${_asset}")
   set(_root "${_cache}/${_root_name}")
-  set(_config "${_root}/lib/cmake/embree-${ARGUS_EMBREE_VERSION}/embree-config.cmake")
   set(_url
       "https://github.com/RenderKit/embree/releases/download/v${ARGUS_EMBREE_VERSION}/${_asset}"
   )
@@ -166,18 +194,32 @@ function(argus_setup_embree)
     endif()
   endif()
 
-  if(NOT EXISTS "${_config}")
+  _argus_embree_resolve_prefix("${_cache}" "${_root_name}" _root _libdir)
+  if(NOT _libdir)
     message(STATUS "Embree: extracting ${_asset}")
     file(MAKE_DIRECTORY "${_cache}")
-    file(ARCHIVE_EXTRACT INPUT "${_archive}" DESTINATION "${_cache}")
+    if(_asset MATCHES "\\.tar\\.gz$")
+      file(MAKE_DIRECTORY "${_root}")
+      file(ARCHIVE_EXTRACT INPUT "${_archive}" DESTINATION "${_root}")
+    else()
+      file(ARCHIVE_EXTRACT INPUT "${_archive}" DESTINATION "${_cache}")
+    endif()
+    _argus_embree_resolve_prefix("${_cache}" "${_root_name}" _root _libdir)
   endif()
 
-  if(NOT EXISTS "${_config}")
-    message(FATAL_ERROR "Embree package is missing ${_config}")
+  if(NOT _libdir)
+    message(FATAL_ERROR
+        "Embree package is missing embree-config.cmake under \"${_cache}\""
+    )
   endif()
 
-  set(embree_DIR "${_root}/lib/cmake/embree-${ARGUS_EMBREE_VERSION}"
-      CACHE PATH "Directory containing embree-config.cmake" FORCE)
+  set(_config
+      "${_root}/${_libdir}/cmake/embree-${ARGUS_EMBREE_VERSION}/embree-config.cmake"
+  )
+
+  set(embree_DIR "${_root}/${_libdir}/cmake/embree-${ARGUS_EMBREE_VERSION}"
+      CACHE PATH "Directory containing embree-config.cmake" FORCE
+  )
   find_package(embree ${ARGUS_EMBREE_VERSION} CONFIG REQUIRED)
   if(NOT TARGET embree)
     message(FATAL_ERROR "Embree was found but did not define the embree target")
@@ -200,7 +242,9 @@ function(argus_setup_embree)
   set_property(GLOBAL PROPERTY ARGUS_EMBREE_RUNTIME_FILES "${_runtime}")
   set_property(GLOBAL PROPERTY ARGUS_EMBREE_RUNTIME_NAMES "${_names}")
   set_property(GLOBAL PROPERTY ARGUS_EMBREE_PACKAGE_DIR
-      "${CMAKE_INSTALL_LIBDIR}/embree/lib/cmake/embree-${ARGUS_EMBREE_VERSION}")
+      "${CMAKE_INSTALL_LIBDIR}/embree/${_libdir}/cmake/embree-${ARGUS_EMBREE_VERSION}"
+  )
+  set_property(GLOBAL PROPERTY ARGUS_EMBREE_RUNTIME_LIBDIR "${_libdir}")
 
   argus_register_lib_target(embree embree)
   message(STATUS "Embree: ${embree_VERSION} (${_root})")
@@ -296,7 +340,12 @@ function(argus_install_embree)
 
   set(_dest "${CMAKE_INSTALL_LIBDIR}/embree")
   install(DIRECTORY "${_prefix}/include/" DESTINATION "${_dest}/include")
-  install(DIRECTORY "${_prefix}/lib/" DESTINATION "${_dest}/lib")
+  if(EXISTS "${_prefix}/lib/")
+    install(DIRECTORY "${_prefix}/lib/" DESTINATION "${_dest}/lib")
+  endif()
+  if(EXISTS "${_prefix}/lib64/")
+    install(DIRECTORY "${_prefix}/lib64/" DESTINATION "${_dest}/lib64")
+  endif()
 
   if(WIN32)
     get_property(_runtime GLOBAL PROPERTY ARGUS_EMBREE_RUNTIME_FILES)

@@ -65,5 +65,31 @@ function(argus_setup_assimp)
     argus_register_lib_target(zlibstatic zlibstatic)
   endif()
 
+  _argus_assimp_fix_linux_minizip_includes()
+
   message(STATUS "Assimp: ${ARGUS_ASSIMP_VERSION}")
+endfunction()
+
+function(_argus_assimp_fix_linux_minizip_includes)
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR NOT TARGET assimp)
+    return()
+  endif()
+
+  # Assimp includes <unzip.h>, while many distros (e.g. Arch) install it as
+  # <minizip/unzip.h> and only add /usr/include to the pkg-config cflags.
+  find_package(PkgConfig QUIET)
+  if(NOT PKG_CONFIG_FOUND)
+    return()
+  endif()
+
+  pkg_check_modules(_argus_assimp_minizip minizip)
+  if(NOT _argus_assimp_minizip_FOUND)
+    return()
+  endif()
+
+  foreach(_dir IN LISTS _argus_assimp_minizip_INCLUDE_DIRS)
+    if(EXISTS "${_dir}/minizip/unzip.h")
+      target_include_directories(assimp SYSTEM PRIVATE "${_dir}/minizip")
+    endif()
+  endforeach()
 endfunction()

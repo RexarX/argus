@@ -187,24 +187,28 @@ cmake --preset linux-gcc-debug \
   -DARGUS_DEVELOPER_MODE=ON
 ```
 
-| Option                            | Default          | Notes                                                      |
-| --------------------------------- | ---------------- | ---------------------------------------------------------- |
-| `ARGUS_BUILD_ALGO`                | ON (top-level)   | Algorithm module                                           |
-| `ARGUS_ENABLE_EMBREE_BACKEND`     | ON               | Fetch and link Embree 4.4.1 CPU binaries                   |
-| `ARGUS_BUILD_SIM`                 | ON (top-level)   | Simulation module                                          |
-| `ARGUS_BUILD_COMMON`              | ON               | Application helpers. Static Assimp mesh loading            |
-| `ARGUS_BUILD_GUI`                 | ON (top-level)   | `argus_gui` raylib and ImGui window                        |
-| `ARGUS_BUILD_C_BINDINGS`          | ON (top-level)   | C API                                                      |
-| `ARGUS_BUILD_PYTHON_BINDINGS`     | ON (top-level)   | pybind11 modules                                           |
-| `ARGUS_BUILD_EXAMPLES`            | ON (top-level)   | `basic_example`, `basic_c_example`, `basic_python_example` |
-| `ARGUS_BUILD_SHARED`              | OFF              | One shared library instead of static archives              |
-| `ARGUS_DEVELOPER_MODE`            | OFF              | Sanitizers in Debug                                        |
-| `ARGUS_ENABLE_RELEASE_LTO`        | ON (top-level)   | Full LTO for Release                                       |
-| `ARGUS_ENABLE_LTO_RELWITHDEBINFO` | OFF              | Thin / incremental LTO for RelWithDebInfo                  |
-| `ARGUS_LINKER`                    | `AUTO` top-level | `AUTO`, `MOLD`, `LLD`, `RAD`, `DEFAULT`                    |
-| `ARGUS_ENABLE_WARNINGS_AS_ERRORS` | OFF              |                                                            |
-| `ARGUS_ENABLE_INSTALL`            | OFF              | Install rules and `argusConfig.cmake`                      |
-| `ARGUS_PYBIND11_VERSION`          | `3.1.0`          | CPM tag when find_package misses                           |
+| Option                                       | Default                   | Notes                                                               |
+| -------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| `ARGUS_BUILD_ALGO`                           | ON (top-level)            | Algorithm module                                                    |
+| `ARGUS_ENABLE_EMBREE_BACKEND`                | ON                        | Fetch and link Embree 4.4.1 CPU binaries                            |
+| `ARGUS_BUILD_SIM`                            | ON (top-level)            | Simulation module                                                   |
+| `ARGUS_BUILD_COMMON`                         | ON                        | Application helpers. Static Assimp mesh loading                     |
+| `ARGUS_BUILD_GUI`                            | ON (top-level)            | `argus_gui` raylib and ImGui window                                 |
+| `ARGUS_GUI_NFD_WAYLAND`                      | ON (Linux)                | nfd Wayland file dialogs; needs wayland-protocols at configure time |
+| `ARGUS_GUI_NFD_X11`                          | ON (Linux)                | nfd X11 file dialogs                                                |
+| `ARGUS_GUI_NFD_USE_SYSTEM_WAYLAND_PROTOCOLS` | ON (Linux, if Wayland on) | Use `/usr/share/wayland-protocols` instead of downloading XML       |
+| `ARGUS_WAYLAND_PROTOCOLS_DIR`                | empty (Linux)             | Override search path for system wayland-protocols XML               |
+| `ARGUS_BUILD_C_BINDINGS`                     | ON (top-level)            | C API                                                               |
+| `ARGUS_BUILD_PYTHON_BINDINGS`                | ON (top-level)            | pybind11 modules                                                    |
+| `ARGUS_BUILD_EXAMPLES`                       | ON (top-level)            | `basic_example`, `basic_c_example`, `basic_python_example`          |
+| `ARGUS_BUILD_SHARED`                         | OFF                       | One shared library instead of static archives                       |
+| `ARGUS_DEVELOPER_MODE`                       | OFF                       | Sanitizers in Debug                                                 |
+| `ARGUS_ENABLE_RELEASE_LTO`                   | ON (top-level)            | Full LTO for Release                                                |
+| `ARGUS_ENABLE_LTO_RELWITHDEBINFO`            | OFF                       | Thin / incremental LTO for RelWithDebInfo                           |
+| `ARGUS_LINKER`                               | `AUTO` top-level          | `AUTO`, `MOLD`, `LLD`, `RAD`, `DEFAULT`                             |
+| `ARGUS_ENABLE_WARNINGS_AS_ERRORS`            | OFF                       |                                                                     |
+| `ARGUS_ENABLE_INSTALL`                       | OFF                       | Install rules and `argusConfig.cmake`                               |
+| `ARGUS_PYBIND11_VERSION`                     | `3.1.0`                   | CPM tag when find_package misses                                    |
 
 ### Run the Example
 
