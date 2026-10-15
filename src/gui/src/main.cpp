@@ -163,12 +163,13 @@ void apply_font() {
     ImGuiStyle& style = ImGui::GetStyle();
 
     ImFontConfig cfg;
+    cfg.Flags |= ImFontFlags_NoLoadError;
     cfg.OversampleH = 1;
     cfg.OversampleV = 1;
     cfg.PixelSnapH = true;
 
-    ImFont* font =
-        io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf");
+    ImFont* font = io.Fonts->AddFontFromFileTTF(
+        "assets/fonts/JetBrainsMono-Regular.ttf", 0.0F, &cfg);
     if (font == nullptr) {
         TraceLog(LOG_ERROR,
                  "Failed to load assets/fonts/JetBrainsMono-Regular.ttf");

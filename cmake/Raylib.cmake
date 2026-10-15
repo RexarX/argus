@@ -1,11 +1,11 @@
-# Official raylib 6.0 static binaries.
+# Official raylib 6.2 static binaries.
 #
-# https://github.com/raysan5/raylib/releases/tag/6.0
+# https://github.com/raysan5/raylib/releases/tag/6.2
 # The shared library in each archive is not used.
 
 include_guard(GLOBAL)
 
-set(ARGUS_RAYLIB_VERSION "6.0")
+set(ARGUS_RAYLIB_VERSION "6.2")
 
 function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
   if(WIN32)
@@ -20,17 +20,17 @@ function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
     if(BIN_ARCHITECTURE STREQUAL "x64")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_win64_msvc16.zip" PARENT_SCOPE)
       set(${OUT_HASH}
-          "c93c7dc74576e00e3ee57fa2bd5fd109fbfc5aca87e12046dd7ec2c2268b3f78"
+          "8467b5dd6db4d7ab942f3148a3d30d93be6ed9b2fab88069d177e59604268ebd"
           PARENT_SCOPE)
     elseif(BIN_ARCHITECTURE STREQUAL "arm64")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_winarm64_msvc16.zip" PARENT_SCOPE)
       set(${OUT_HASH}
-          "ecd21693c5fd760ce1efc52745882e98fa61e0d3ecac36ec2271c60e245849b1"
+          "027454a16018793c173fe20005100487c246235e61d2a096ec2e31357bad4ac6"
           PARENT_SCOPE)
     elseif(BIN_ARCHITECTURE STREQUAL "x86")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_win32_msvc16.zip" PARENT_SCOPE)
       set(${OUT_HASH}
-          "0ad13447d0a00aa5d442196f345531b9df56ce333bfbc6d0ac22924b7d7c7cf0"
+          "d5f1084ab81da3a9baa91eb3bf8f772faf96f8b0446a6ba994e297a3939cf485"
           PARENT_SCOPE)
     else()
       message(FATAL_ERROR
@@ -45,7 +45,7 @@ function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
   if(APPLE)
     set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_macos.tar.gz" PARENT_SCOPE)
     set(${OUT_HASH}
-        "6ae5947fbd36aee4c280e3a2b3e1893316c433e292bda6e94e0f2b037498ad70"
+        "100437734a44d56ed9d2a1c4b249dbfc6d6cc3477a45e306f9f56fe5f1e2b4ef"
         PARENT_SCOPE)
     set(${OUT_LIB} "lib/libraylib.a" PARENT_SCOPE)
     return()
@@ -56,17 +56,17 @@ function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
     if(BIN_ARCHITECTURE STREQUAL "x64")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_linux_amd64.tar.gz" PARENT_SCOPE)
       set(${OUT_HASH}
-          "b64ba618a19e7da9e9c0e09bb398ecfd477a77d2d7231901bafc8739d27c08d2"
+          "586bbc32f3596d439382b1c5dbc6c1c573eb7e1d00fe92be7d4deb116883720d"
           PARENT_SCOPE)
     elseif(BIN_ARCHITECTURE STREQUAL "arm64")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_linux_arm64.tar.gz" PARENT_SCOPE)
       set(${OUT_HASH}
-          "d39ca0b36fe865b41b058a5646576e6b98b4875352502b41ed303f2c38a39ec9"
+          "281f3456c9e11c090442f5c1ca923c2c272c8fe53e6693fcd22f07c52f76da5a"
           PARENT_SCOPE)
     elseif(BIN_ARCHITECTURE STREQUAL "x86")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_linux_i386.tar.gz" PARENT_SCOPE)
       set(${OUT_HASH}
-          "2e32ba0af8f87f6899ad31b79f89b9760639e47b1bb30b304a857bba4e5bc548"
+          "f9de4b5abbd2db1e3acf1844e942547ceb66406607b214314747975f867099c7"
           PARENT_SCOPE)
     else()
       message(FATAL_ERROR
@@ -113,7 +113,7 @@ endfunction()
 #[[
     argus_setup_raylib()
 
-    Downloads the v6.0 archive into CPM_SOURCE_CACHE and imports the static
+    Downloads the v6.2 archive into CPM_SOURCE_CACHE and imports the static
     raylib target. The DLL and shared objects in the archive are ignored.
     The Windows archive is the release CRT (/MD).
 ]]
