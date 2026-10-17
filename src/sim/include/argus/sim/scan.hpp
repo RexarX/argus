@@ -4,7 +4,7 @@
 #include <argus/lidar.hpp>
 #include <argus/mirror.hpp>
 #include <argus/platform.hpp>
-#include <argus/scene.hpp>
+#include <argus/sim/scene.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -24,8 +24,9 @@ namespace argus::sim {
 /// @brief Casts every lidar and reflects off every mirror.
 /// @details `hits` is one hit per pattern sample, lidars concatenated in
 /// span order. A lidar contributes `pattern.directions.size()` rays.
-/// Directions come from the lidar pose (`rotation`) and `scale_angle`,
-/// computed once per lidar. Mirrors are analytic quads, not scene triangles.
+/// Directions come from the lidar pose (`create_rotation_matrix`) and
+/// `scale_angle`, computed once per lidar. Mirrors are analytic quads, not
+/// scene triangles.
 /// A mirror closer than the scene is kept. Its front face reflects, up to
 /// `max_bounces`, and the reflected ray's origin is offset along the bounce
 /// so the quad does not hit itself. The back face occludes: the ray stops

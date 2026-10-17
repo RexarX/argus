@@ -1,8 +1,8 @@
 #pragma once
 
-#include <argus/embree/instance.hpp>
 #include <argus/error.hpp>
 #include <argus/platform.hpp>
+#include <argus/sim/embree/instance.hpp>
 #include <argus/types.hpp>
 
 #include <span>
@@ -32,7 +32,7 @@ struct Scene {
 /// - If `instance` is null.
 /// - If `instance->rtc` is null.
 [[nodiscard]] ARGUS_API auto create_scene(Instance* instance,
-                                          const Mesh& mesh) noexcept
+                                          const Mesh_View& mesh) noexcept
     -> Result<Scene*>;
 
 /// @brief Releases `scene` and the acceleration structure it stores.

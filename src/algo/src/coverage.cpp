@@ -12,7 +12,7 @@
 #include <argus/workspace.hpp>
 
 #ifdef ARGUS_ENABLE_SIM
-#include <argus/scan.hpp>
+#include <argus/sim/scan.hpp>
 #endif
 
 #include <algorithm>
@@ -120,7 +120,7 @@ auto voxel_id(const Grid& grid, float3 point, float3 normal) noexcept
     return (iz * grid.dims[1] + iy) * grid.dims[0] + ix;
 }
 
-auto surface_voxels(const Context& context, const Mesh& mesh,
+auto surface_voxels(const Context& context, const Mesh_View& mesh,
                     const Grid& grid) noexcept -> Result<Surface> {
     ARGUS_ASSERT(context.allocator != nullptr,
                  "surface_voxels needs an allocator!");

@@ -10,3 +10,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#ifdef ARGUS_ENABLE_EMBREE_BACKEND
+#include <embree4/rtcore.h>
+#endif

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <argus/backend.hpp>
 #include <argus/error.hpp>
-#include <argus/instance.hpp>
 #include <argus/math.hpp>
-#include <argus/scene.hpp>
+#include <argus/sim/backend.hpp>
+#include <argus/sim/instance.hpp>
+#include <argus/sim/scene.hpp>
 #include <argus/types.hpp>
 
 #include <span>
@@ -19,7 +19,7 @@ struct Backend_VTable {
     using Create_Instance_Fn = Result<void*> (*)() noexcept;
     using Destroy_Instance_Fn = void (*)(void* instance) noexcept;
     using Create_Scene_Fn = Result<void*> (*)(void* instance,
-                                              const Mesh& mesh) noexcept;
+                                              const Mesh_View& mesh) noexcept;
     using Create_User_Scene_Fn =
         Result<void*> (*)(void* instance, const User_Trace& trace) noexcept;
     using Destroy_Scene_Fn = void (*)(void* scene) noexcept;

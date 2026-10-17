@@ -1,7 +1,7 @@
 #include <pch.hpp>
 
-#include <argus/embree/instance.hpp>
-#include <argus/embree/scene.hpp>
+#include <argus/sim/embree/instance.hpp>
+#include <argus/sim/embree/scene.hpp>
 
 #include <argus/assert.hpp>
 #include <argus/error.hpp>
@@ -10,7 +10,6 @@
 
 #include <embree4/rtcore.h>
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -36,7 +35,7 @@ void release_geometry(RTCGeometry geometry, RTCScene rtc_scene) noexcept {
     }
 }
 
-[[nodiscard]] bool indices_fit(const Mesh& mesh) noexcept {
+[[nodiscard]] bool indices_fit(const Mesh_View& mesh) noexcept {
     const size_t vertices = mesh.vertices.size();
     if (vertices > UINT32_MAX) {
         return false;
@@ -54,7 +53,8 @@ void release_geometry(RTCGeometry geometry, RTCScene rtc_scene) noexcept {
     return true;
 }
 
-auto commit(RTCDeviceTy* rtc, const Mesh& mesh) noexcept -> Result<RTCScene> {
+auto commit(RTCDeviceTy* rtc, const Mesh_View& mesh) noexcept
+    -> Result<RTCScene> {
     if (!indices_fit(mesh)) [[unlikely]] {
         return fail(Error::INVALID,
                     "mesh triangle references a vertex index out of range");
@@ -127,7 +127,7 @@ auto commit(RTCDeviceTy* rtc, const Mesh& mesh) noexcept -> Result<RTCScene> {
 
 auto create_instance_thunk() noexcept -> Result<void*>;
 void destroy_thunk(void* instance) noexcept;
-auto create_scene_thunk(void* instance, const Mesh& mesh) noexcept
+auto create_scene_thunk(void* instance, const Mesh_View& mesh) noexcept
     -> Result<void*>;
 void destroy_scene_thunk(void* scene) noexcept;
 auto trace_thunk(void* scene, std::span<const Ray> rays,
@@ -175,7 +175,7 @@ void destroy(Instance* instance) noexcept {
     delete instance;
 }
 
-auto create_scene(Instance* instance, const Mesh& mesh) noexcept
+auto create_scene(Instance* instance, const Mesh_View& mesh) noexcept
     -> Result<Scene*> {
     ARGUS_ASSERT(instance != nullptr);
     ARGUS_ASSERT(instance->rtc != nullptr);
@@ -246,12 +246,8 @@ auto trace(Scene* scene, std::span<const Ray> rays,
         hit.hit = true;
         hit.distance = query.ray.tfar;
         hit.position = ray.origin + ray.direction * query.ray.tfar;
-        float3 normal{query.hit.Ng_x, query.hit.Ng_y, query.hit.Ng_z};
-        const float length_sq = normal.squaredNorm();
-        if (length_sq > 0.0F) {
-            normal /= std::sqrt(length_sq);
-        }
-        hit.normal = normal;
+        const float3 normal{query.hit.Ng_x, query.hit.Ng_y, query.hit.Ng_z};
+        hit.normal = normal.normalized();
         hit.primitive = query.hit.primID;
     }
     return {};
@@ -271,7 +267,7 @@ void destroy_thunk(void* instance) noexcept {
     destroy(static_cast<Instance*>(instance));
 }
 
-auto create_scene_thunk(void* instance, const Mesh& mesh) noexcept
+auto create_scene_thunk(void* instance, const Mesh_View& mesh) noexcept
     -> Result<void*> {
     auto built = create_scene(static_cast<Instance*>(instance), mesh);
     if (!built) [[unlikely]] {

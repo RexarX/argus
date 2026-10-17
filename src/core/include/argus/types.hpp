@@ -1,9 +1,12 @@
 #pragma once
 
+#include <argus/assert.hpp>
 #include <argus/math.hpp>
 
 #include <cstdint>
+#include <memory_resource>
 #include <span>
+#include <vector>
 
 namespace argus {
 
@@ -21,14 +24,40 @@ struct Orientation {
         default;
 };
 
-/// @brief Indexed triangle mesh.
-/// @details Vertices are in world space. Each triangle lists three vertex
-/// indices. Winding is outward-facing. The spans need to live only for the
-/// call that copies them into a backend.
+/// @brief Owned triangle mesh.
+/// @details Vertices stay in the file's coordinate space. Winding is the
+/// file's winding after triangulation.
 struct Mesh {
+    std::pmr::vector<float3> vertices{std::pmr::get_default_resource()};
+    std::pmr::vector<uint3> triangles{std::pmr::get_default_resource()};
+};
+
+/// @brief Created empty mesh whose containers use `allocator`.
+/// @param allocator Resource for `vertices` and `triangles`
+/// @return Empty mesh
+/// @warning Asserts if `allocator` is null.
+[[nodiscard]] inline Mesh create_mesh_with(
+    std::pmr::memory_resource* allocator) noexcept {
+    ARGUS_ASSERT(allocator != nullptr);
+    return {
+        .vertices = std::pmr::vector<float3>{allocator},
+        .triangles = std::pmr::vector<uint3>{allocator},
+    };
+}
+
+/// @brief Read-only view of `Mesh`
+struct Mesh_View {
     std::span<const float3> vertices;
     std::span<const uint3> triangles;
 };
+
+/// @brief Creates a read-only view of `Mesh`.
+/// @param mesh Owned mesh to view
+/// @return `Mesh` that provides non-owning access to `mesh`'s vertices and
+/// triangles
+[[nodiscard]] inline Mesh_View create_view(const Mesh& mesh) noexcept {
+    return {.vertices = mesh.vertices, .triangles = mesh.triangles};
+}
 
 /// @brief One ray to intersect with a scene.
 /// @details `direction` is a unit vector. `max_distance` is the farthest

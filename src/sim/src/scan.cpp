@@ -1,6 +1,6 @@
 #include <pch.hpp>
 
-#include <argus/scan.hpp>
+#include <argus/sim/scan.hpp>
 
 #include <argus/assert.hpp>
 #include <argus/error.hpp>
@@ -8,7 +8,7 @@
 #include <argus/math.hpp>
 #include <argus/memory/temporary_storage.hpp>
 #include <argus/mirror.hpp>
-#include <argus/scene.hpp>
+#include <argus/sim/scene.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -153,7 +153,7 @@ void write_scene(Hit* dst, const Hit& scene_hit, const Shot& shot) noexcept {
         return {};
     }
 
-    const float3x3 pose = rotation(
+    const float3x3 pose = create_rotation_matrix(
         lidar.orientation.yaw, lidar.orientation.pitch, lidar.orientation.roll);
     for (size_t base = 0; base < count; base += CHUNK) {
         const size_t batch = std::min(CHUNK, count - base);
@@ -253,9 +253,9 @@ auto cast(Scene scene, std::span<const Lidar> lidars,
     frames.reserve(mirrors.size());
     for (size_t index = 0; index < mirrors.size(); ++index) {
         const Mirror& mirror = mirrors[index];
-        const float3x3 pose =
-            rotation(mirror.orientation.yaw, mirror.orientation.pitch,
-                     mirror.orientation.roll);
+        const float3x3 pose = create_rotation_matrix(mirror.orientation.yaw,
+                                                     mirror.orientation.pitch,
+                                                     mirror.orientation.roll);
         Frame frame;
         frame.position = mirror.position;
         frame.tangent = pose.col(0);

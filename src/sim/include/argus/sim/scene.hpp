@@ -1,8 +1,8 @@
 #pragma once
 
 #include <argus/error.hpp>
-#include <argus/instance.hpp>
 #include <argus/platform.hpp>
+#include <argus/sim/instance.hpp>
 #include <argus/types.hpp>
 
 #include <span>
@@ -57,7 +57,7 @@ struct User_Trace {
 /// mesh scene, or another recoverable `Error` from the backend
 /// @warning Asserts if `instance` is null.
 [[nodiscard]] ARGUS_API auto create_scene(Instance instance,
-                                          const Mesh& mesh) noexcept
+                                          const Mesh_View& mesh) noexcept
     -> Result<Scene>;
 
 /// @brief Creates a callback scene of `trace` on `instance`.

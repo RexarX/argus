@@ -62,7 +62,7 @@ int main() {
     add_box(&vertices, &triangles, {0.0F, 0.0F, 0.0F}, {10.0F, 3.0F, 10.0F});
     add_box(&vertices, &triangles, {4.0F, 0.0F, 4.0F}, {6.0F, 2.0F, 6.0F});
 
-    argus::Mesh mesh;
+    argus::Mesh_View mesh;
     mesh.vertices = {vertices.data(), vertices.size()};
     mesh.triangles = {triangles.data(), triangles.size()};
     auto scene = sim::create_scene(*instance, mesh);
@@ -73,11 +73,12 @@ int main() {
 
     constexpr uint32_t columns = 64;
     constexpr uint32_t rows = 16;
-    std::vector<argus::float3> pattern(static_cast<size_t>(columns) * rows);
-    argus::fill_uniform_pattern(2.0F, 0.6F, columns, rows, pattern);
+    argus::Pattern pattern;
+    pattern.directions.resize((static_cast<size_t>(columns) * rows));
+    argus::fill_uniform_pattern(2.0F, 0.6F, columns, rows, &pattern);
 
     argus::Lidar lidars[2];
-    lidars[0].pattern.directions = pattern;
+    lidars[0].pattern = argus::create_view(pattern);
     lidars[0].position = {1.5F, 1.4F, 1.5F};
     lidars[0].orientation.yaw = 0.3F;
     lidars[0].orientation.pitch = -0.15F;

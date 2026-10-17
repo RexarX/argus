@@ -1,11 +1,11 @@
 #include <pch.hpp>
 
-#include <argus/scene.hpp>
+#include <argus/sim/scene.hpp>
 
 #include <argus/assert.hpp>
-#include <argus/backend.hpp>
 #include <argus/error.hpp>
-#include <argus/instance.hpp>
+#include <argus/sim/backend.hpp>
+#include <argus/sim/instance.hpp>
 #include <dispatch.hpp>
 
 #include <expected>
@@ -32,7 +32,7 @@ Backend backend_of(Scene scene) noexcept {
     return table->backend;
 }
 
-auto create_scene(Instance instance, const Mesh& mesh) noexcept
+auto create_scene(Instance instance, const Mesh_View& mesh) noexcept
     -> Result<Scene> {
     ARGUS_ASSERT(instance.ptr != nullptr);
 

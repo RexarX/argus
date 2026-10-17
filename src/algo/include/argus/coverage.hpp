@@ -159,7 +159,7 @@ struct Coverage {
 /// is out of range
 /// @warning Asserts if `context.allocator` is null.
 [[nodiscard]] ARGUS_API auto surface_voxels(const Context& context,
-                                            const Mesh& mesh,
+                                            const Mesh_View& mesh,
                                             const Grid& grid) noexcept
     -> Result<Surface>;
 

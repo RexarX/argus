@@ -7,7 +7,7 @@
 #include <argus/types.hpp>
 
 #ifdef ARGUS_ENABLE_SIM
-#include <argus/scene.hpp>
+#include <argus/sim/scene.hpp>
 #endif
 
 #include <cstdint>

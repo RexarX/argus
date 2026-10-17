@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace argus::gui {
+namespace argus {
 
 /// Sparse set storing one component of type `T` per entity index.
 /// `sparse[entity_index]` is the position in `dense`, or
@@ -293,4 +293,4 @@ template <typename T>
     return &component_pool.dense[component_pool.sparse[index]];
 }
 
-}  // namespace argus::gui
+}  // namespace argus

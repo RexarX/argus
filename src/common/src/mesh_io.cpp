@@ -30,8 +30,8 @@ constexpr unsigned int IMPORT_FLAGS =
 }  // namespace
 
 auto load_mesh(const char* path, std::pmr::memory_resource* allocator) noexcept
-    -> Result<Owned_Mesh> {
-    ARGUS_ASSERT(allocator != nullptr, "load_mesh needs an allocator!");
+    -> Result<Mesh> {
+    ARGUS_ASSERT(allocator != nullptr);
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, IMPORT_FLAGS);
     if (scene == nullptr) [[unlikely]] {
@@ -39,7 +39,7 @@ auto load_mesh(const char* path, std::pmr::memory_resource* allocator) noexcept
                     importer.GetErrorString());
     }
 
-    Owned_Mesh loaded = create_loaded_mesh_with(allocator);
+    Mesh loaded = create_mesh_with(allocator);
     for (unsigned int index = 0; index < scene->mNumMeshes; ++index) {
         const aiMesh* mesh = scene->mMeshes[index];
         if (!has_triangles(mesh)) {

@@ -13,8 +13,8 @@ struct Extent {
 
 /// @brief One rectangular mirror.
 /// @details `position` is the center. `orientation` builds the frame
-/// (`rotation`): column 0 is the in-plane width axis, column 1 is the height
-/// axis, and column 2 is the normal. Angles are radians.
+/// (`create_rotation_matrix`): column 0 is the in-plane width axis, column 1
+/// is the height axis, and column 2 is the normal. Angles are radians.
 struct Mirror {
     float3 position = float3::Zero();
     Orientation orientation;

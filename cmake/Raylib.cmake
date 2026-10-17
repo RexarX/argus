@@ -21,17 +21,20 @@ function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_win64_msvc16.zip" PARENT_SCOPE)
       set(${OUT_HASH}
           "8467b5dd6db4d7ab942f3148a3d30d93be6ed9b2fab88069d177e59604268ebd"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
     elseif(BIN_ARCHITECTURE STREQUAL "arm64")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_winarm64_msvc16.zip" PARENT_SCOPE)
       set(${OUT_HASH}
           "027454a16018793c173fe20005100487c246235e61d2a096ec2e31357bad4ac6"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
     elseif(BIN_ARCHITECTURE STREQUAL "x86")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_win32_msvc16.zip" PARENT_SCOPE)
       set(${OUT_HASH}
           "d5f1084ab81da3a9baa91eb3bf8f772faf96f8b0446a6ba994e297a3939cf485"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
     else()
       message(FATAL_ERROR
           "raylib ${ARGUS_RAYLIB_VERSION} has no Windows binary for "
@@ -46,7 +49,8 @@ function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
     set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_macos.tar.gz" PARENT_SCOPE)
     set(${OUT_HASH}
         "100437734a44d56ed9d2a1c4b249dbfc6d6cc3477a45e306f9f56fe5f1e2b4ef"
-        PARENT_SCOPE)
+        PARENT_SCOPE
+    )
     set(${OUT_LIB} "lib/libraylib.a" PARENT_SCOPE)
     return()
   endif()
@@ -57,17 +61,20 @@ function(_argus_raylib_asset OUT_NAME OUT_HASH OUT_LIB)
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_linux_amd64.tar.gz" PARENT_SCOPE)
       set(${OUT_HASH}
           "586bbc32f3596d439382b1c5dbc6c1c573eb7e1d00fe92be7d4deb116883720d"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
     elseif(BIN_ARCHITECTURE STREQUAL "arm64")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_linux_arm64.tar.gz" PARENT_SCOPE)
       set(${OUT_HASH}
           "281f3456c9e11c090442f5c1ca923c2c272c8fe53e6693fcd22f07c52f76da5a"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
     elseif(BIN_ARCHITECTURE STREQUAL "x86")
       set(${OUT_NAME} "raylib-${ARGUS_RAYLIB_VERSION}_linux_i386.tar.gz" PARENT_SCOPE)
       set(${OUT_HASH}
           "f9de4b5abbd2db1e3acf1844e942547ceb66406607b214314747975f867099c7"
-          PARENT_SCOPE)
+          PARENT_SCOPE
+      )
     else()
       message(FATAL_ERROR
           "raylib ${ARGUS_RAYLIB_VERSION} has no Linux binary for "

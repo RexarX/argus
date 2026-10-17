@@ -7,5 +7,5 @@
 #endif
 
 #ifdef ARGUS_ENABLE_SIM
-#include <argus/sim.hpp>
+#include <argus/sim/sim.hpp>
 #endif

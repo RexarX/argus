@@ -1,11 +1,11 @@
 #include <pch.hpp>
 
-#include <argus/instance.hpp>
+#include <argus/sim/instance.hpp>
 
 #include <argus/assert.hpp>
-#include <argus/backend.hpp>
 #include <argus/error.hpp>
-#include <argus/scene.hpp>
+#include <argus/sim/backend.hpp>
+#include <argus/sim/scene.hpp>
 #include <dispatch.hpp>
 
 #include <new>

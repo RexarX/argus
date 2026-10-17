@@ -30,7 +30,7 @@ ImVec4 adjust_hue_and_saturation(const ImVec4& color, const float hue_shift,
 }
 
 void apply_style() {
-    ImGuiStyle& style = ImGui::GetStyle();
+    auto& style = ImGui::GetStyle();
 
     constexpr float HUE = 0.0F;                // [0,1] range.
     constexpr float SATURATION = 1.0F;         // [0,6] range.
@@ -159,11 +159,10 @@ void apply_style() {
 }
 
 void apply_font() {
-    ImGuiIO& io = ImGui::GetIO();
-    ImGuiStyle& style = ImGui::GetStyle();
+    auto& io = ImGui::GetIO();
+    auto& style = ImGui::GetStyle();
 
     ImFontConfig cfg;
-    cfg.Flags |= ImFontFlags_NoLoadError;
     cfg.OversampleH = 1;
     cfg.OversampleV = 1;
     cfg.PixelSnapH = true;
@@ -184,7 +183,7 @@ void apply_font() {
 void init_imgui() {
     rlImGuiSetup(true);
 
-    ImGuiIO& io = ImGui::GetIO();
+    auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     ImPlot::CreateContext();
@@ -209,7 +208,7 @@ void apply_gizmo_style() {
     ImGuizmo::AllowAxisFlip(false);
     ImGuizmo::SetGizmoSizeClipSpace(0.14F);
 
-    ImGuizmo::Style& style = ImGuizmo::GetStyle();
+    auto& style = ImGuizmo::GetStyle();
     style.TranslationLineThickness = 2.5F;
     style.TranslationLineArrowSize = 7.0F;
     style.RotationLineThickness = 2.0F;
@@ -247,22 +246,12 @@ void apply_gizmo_style() {
 }
 
 void handle_gizmo_shortcuts(Gizmo_State& gizmo, const bool flying) {
-    if (flying || ImGui::GetIO().WantTextInput) {
-        return;
-    }
+    if (flying || ImGui::GetIO().WantTextInput) return;
 
-    if (IsKeyPressed(KEY_W)) {
-        gizmo.operation = ImGuizmo::TRANSLATE;
-    }
-    if (IsKeyPressed(KEY_E)) {
-        gizmo.operation = ImGuizmo::ROTATE;
-    }
-    if (IsKeyPressed(KEY_R)) {
-        gizmo.operation = ImGuizmo::SCALE;
-    }
-    if (IsKeyPressed(KEY_T)) {
-        gizmo.operation = ImGuizmo::UNIVERSAL;
-    }
+    if (IsKeyPressed(KEY_W)) gizmo.operation = ImGuizmo::TRANSLATE;
+    if (IsKeyPressed(KEY_E)) gizmo.operation = ImGuizmo::ROTATE;
+    if (IsKeyPressed(KEY_R)) gizmo.operation = ImGuizmo::SCALE;
+    if (IsKeyPressed(KEY_T)) gizmo.operation = ImGuizmo::UNIVERSAL;
     if (IsKeyPressed(KEY_X)) {
         gizmo.mode =
             (gizmo.mode == ImGuizmo::WORLD) ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
@@ -320,7 +309,7 @@ void camera_look_at(Fly_Camera& cam, const Vector3 target) {
 }
 
 void update_fly_state(Fly_Camera& cam) {
-    const ImGuiIO& io = ImGui::GetIO();
+    const auto& io = ImGui::GetIO();
 
     if (!cam.flying && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) &&
         !io.WantCaptureMouse) {
@@ -356,9 +345,7 @@ void update_camera_movement(Fly_Camera& cam, const float dt) {
 
     if (Vector3LengthSqr(move) > 0.0F) {
         float speed = cam.move_speed;
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            speed *= cam.boost_multiplier;
-        }
+        if (IsKeyDown(KEY_LEFT_SHIFT)) speed *= cam.boost_multiplier;
         move = Vector3Scale(Vector3Normalize(move), speed * dt);
         cam.position = Vector3Add(cam.position, move);
     }
@@ -418,7 +405,7 @@ void draw_scene(const Camera3D& camera, const float* object_matrix) {
 }
 
 void draw_dockspace_host() {
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const auto* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
@@ -436,7 +423,7 @@ void draw_dockspace_host() {
     ImGui::Begin("DockSpace Host", nullptr, window_flags);
     ImGui::PopStyleVar(3);
 
-    const ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+    const auto dockspace_id = ImGui::GetID("MyDockSpace");
     ImGui::DockSpace(dockspace_id, {0.0F, 0.0F},
                      ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::End();

@@ -1,9 +1,9 @@
 set(ARGUS_SIM_HEADERS
-    include/argus/backend.hpp
-    include/argus/instance.hpp
-    include/argus/scan.hpp
-    include/argus/scene.hpp
-    include/argus/sim.hpp
+    include/argus/sim/backend.hpp
+    include/argus/sim/instance.hpp
+    include/argus/sim/scan.hpp
+    include/argus/sim/scene.hpp
+    include/argus/sim/sim.hpp
 )
 
 set(ARGUS_SIM_SOURCES
@@ -18,8 +18,8 @@ set(ARGUS_SIM_SOURCES
 
 if(ARGUS_ENABLE_EMBREE_BACKEND)
   list(APPEND ARGUS_SIM_HEADERS
-      include/argus/embree/instance.hpp
-      include/argus/embree/scene.hpp
+      include/argus/sim/embree/instance.hpp
+      include/argus/sim/embree/scene.hpp
   )
   list(APPEND ARGUS_SIM_SOURCES
       src/embree/instance.cpp
